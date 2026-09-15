@@ -13,7 +13,7 @@ api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
 # Model configuration using supported legacy SDK alias
-MODEL_NAME = 'gemini-1.5-flash'
+MODEL_NAME = 'gemini-1.5-pro'
 model = genai.GenerativeModel(MODEL_NAME)
 
 # Session State Initialization
