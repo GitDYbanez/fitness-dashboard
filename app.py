@@ -79,9 +79,11 @@ with tab1:
             Latest Scale Data: {body_data}
             Latest Sleep Data: {sleep_data}
             Generate Today's Workout following the A/B/C full-body split progression.
-            Provide the complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
+            Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
+            Do not include conversational conversational greetings or setup intros.
             """
             response = model.generate_content(prompt)
+            # Store cleanly formatted workout directly into session state
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
             
