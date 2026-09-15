@@ -4,6 +4,7 @@ import google.generativeai as genai
 import plotly.express as px
 from PIL import Image
 
+# 1. Page Config & API Setup
 st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
@@ -11,8 +12,9 @@ st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
-# Specify model using official resource path
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+# Model configuration using stable endpoint alias
+MODEL_NAME = 'gemini-2.5-flash'
+model = genai.GenerativeModel(MODEL_NAME)
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
@@ -80,10 +82,9 @@ with tab1:
             Latest Sleep Data: {sleep_data}
             Generate Today's Workout following the A/B/C full-body split progression.
             Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
-            Do not include conversational conversational greetings or setup intros.
+            Do not include conversational greetings or setup intros.
             """
             response = model.generate_content(prompt)
-            # Store cleanly formatted workout directly into session state
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
             
