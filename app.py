@@ -43,18 +43,26 @@ if 'last_completed_workout' not in st.session_state:
 if 'active_workout_letter' not in st.session_state:
     st.session_state.active_workout_letter = "B"
 
-# Helper Function to Dynamically Parse Exercises from Analyst Text Output
+# Robust Dynamic Exercise Parser
 def parse_exercises_from_text(workout_text):
     exercises = []
     lines = workout_text.split('\n')
     for line in lines:
-        # Matches lines like "1. 45° Leg Press — 3 sets × 10–12 reps..." or similar patterns
-        match = re.match(r'^\s*(\d+)\.\s+(.*?)\s+[—–-]\s+(\d+)\s+sets?', line, re.IGNORECASE)
+        # Match numbered exercise lines (e.g., "1. 45° Leg Press — 3 sets...")
+        match = re.match(r'^\s*(\d+)\.\s+(.*?)(?:\s+[—–-]\s+|\s+—\s+|\s+-\s+|\b\d+\s+sets?\b)', line, re.IGNORECASE)
         if match:
             ex_name = match.group(2).strip()
-            sets = int(match.group(3))
+            # Clean up trailing dashes if captured
+            ex_name = re.sub(r'\s+[—–-]\s*$', '', ex_name).strip()
             
-            # Extract rep range if present
+            if not ex_name or ex_name.lower().startswith('warm') or ex_name.lower().startswith('cooldown'):
+                continue
+                
+            # Extract sets
+            set_match = re.search(r'(\d+)\s+sets?', line, re.IGNORECASE)
+            sets = int(set_match.group(1)) if set_match else 3
+            
+            # Extract reps
             rep_match = re.search(r'(\d+(?:[–-]\d+)?)\s+reps?', line, re.IGNORECASE)
             target_reps = rep_match.group(1) if rep_match else "10"
             
@@ -65,9 +73,22 @@ def parse_exercises_from_text(workout_text):
                 "target_rir": 3
             })
             
-    # Fallback default if parsing finds nothing (e.g. custom format)
+    # Fallback secondary parser if primary format differs slightly
     if not exercises:
-        exercises = [{"exercise": "General Working Exercise", "sets": 3, "target_reps": "10", "target_rir": 3}]
+        for line in lines:
+            if re.match(r'^\s*\d+\.\s+', line):
+                parts = re.split(r'[—–-]', line)
+                ex_name = re.sub(r'^\s*\d+\.\s+', '', parts[0]).strip()
+                if ex_name and not ex_name.lower().startswith('warm'):
+                    exercises.append({
+                        "exercise": ex_name,
+                        "sets": 3,
+                        "target_reps": "10",
+                        "target_rir": 3
+                    })
+
+    if not exercises:
+        exercises = [{"exercise": "Working Exercise", "sets": 3, "target_reps": "10", "target_rir": 3}]
         
     return exercises
 
@@ -192,7 +213,6 @@ Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, R
                 st.error(response_text)
             else:
                 st.session_state.todays_workout = response_text
-                # Reset logger index when a new workout is generated
                 st.session_state.current_ex_index = 0
                 st.session_state.current_set_num = 1
                 st.success(f"Workout {st.session_state.active_workout_letter} Generated Successfully! Switch to the Live Assistant tab to execute.")
