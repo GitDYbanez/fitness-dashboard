@@ -10,18 +10,7 @@ st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 # Initialize modern GenAI Client
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
-
-# Dynamically fetch an active model from your API key's permissions
-@st.cache_resource
-def get_working_model():
-    for m in client.models.list():
-        # Look for standard flash models available on your project key
-        if 'flash' in m.name.lower() and 'generateContent' in m.supported_generation_methods:
-            return m.name
-    # Fallback default
-    return 'gemini-1.5-flash'
-
-MODEL_ID = get_working_model()
+MODEL_ID = 'gemini-1.5-flash'
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
@@ -102,7 +91,7 @@ with tab1:
                 contents=prompt
             )
             st.session_state.todays_workout = response.text
-            st.success(f"Today's Workout Generated! (Using model: {MODEL_ID})")
+            st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
             
     if st.session_state.todays_workout:
         st.subheader("Prescribed Routine")
