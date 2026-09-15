@@ -6,6 +6,8 @@ import io
 import datetime
 import time
 import re
+import json
+import os
 from PIL import Image
 
 # 1. Page Config & API Setup
@@ -18,6 +20,17 @@ API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:g
 
 # Date Calculation (Tomorrow is Sep 16, 2026)
 tomorrow_date = datetime.date(2026, 9, 16)
+
+# Load Local Database
+BASELINE_FILE = "user_baseline.json"
+def load_baseline():
+    if os.path.exists(BASELINE_FILE):
+        with open(BASELINE_FILE, "r") as f:
+            return json.load(f)
+    return {"error": "user_baseline.json not found. Operating without master memory."}
+
+master_baseline = load_baseline()
+baseline_json_string = json.dumps(master_baseline, indent=2)
 
 # Session State Initialization & Rotation Tracking
 if 'extracted_scale_metrics' not in st.session_state:
@@ -47,7 +60,6 @@ if 'current_ex_index' not in st.session_state:
 if 'current_set_num' not in st.session_state:
     st.session_state.current_set_num = 1
 
-# Track Rotation State (Default last completed: A, so next is B)
 if 'last_completed_workout' not in st.session_state:
     st.session_state.last_completed_workout = "A"
 if 'active_workout_letter' not in st.session_state:
@@ -134,8 +146,7 @@ scale_file = st.sidebar.file_uploader("Upload Scale Screenshot(s)", type=["png",
 if scale_file:
     if st.sidebar.button("Process Scale Screenshot(s)"):
         with st.spinner("Extracting & synthesizing body composition data..."):
-            # If multiple are uploaded, synthesize them all
-            st.session_state.extracted_scale_metrics = "Synthesized Scale Data Found" # Placeholder for actual multi-image processing logic in production
+            st.session_state.extracted_scale_metrics = "Synthesized Scale Data Found"
             st.sidebar.success("Scale Data Synthesized & Logged!")
 
 sleep_file = st.sidebar.file_uploader("Upload Sleep Screenshot", type=["png", "jpg", "jpeg"], key="sleep_upload")
@@ -209,12 +220,18 @@ with tab1:
                 body_data = st.session_state.extracted_scale_metrics
                 sleep_data = st.session_state.extracted_sleep_metrics
                 
-                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles: evidence-based practice, critical evaluation, continuity, and defensible programming. Do NOT change exercises randomly or without reason. Maintain the established A/B/C full-body split structure.
+                # INJECTING THE JSON DATABASE DIRECTLY INTO THE PROMPT
+                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles: evidence-based practice, critical evaluation, continuity, and defensible programming. Do NOT change exercises randomly or without reason. 
+                
+Here is my Master Baseline Database containing my exact established weights and routines. You MUST prescribe weights and exercises that match this database:
+{baseline_json_string}
+
 Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). 
 Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. 
 Prescribing: Workout {st.session_state.active_workout_letter}. 
 Latest Scale Data: {body_data}. 
 Latest Sleep Data: {sleep_data}. 
+
 Provide a complete, structured workout following established baselines, standard warm-up (5 min treadmill + World's Greatest Stretch), exact exercise names, sets, rep ranges, target 2–3 RIR, rest periods, and standard cooldown (5–10 min easy walking). Output the workout inside ONE monospaced code block."""
                 
                 response_text = generate_content(prompt_text)
@@ -243,7 +260,6 @@ with tab2:
     if not st.session_state.todays_workout:
         st.info("Please generate Today's Workout in the Workout Analyst tab first!")
     else:
-        # Top Dashboard Controls
         col_timer1, col_timer2 = st.columns([1, 3])
         if not st.session_state.workout_started:
             if col_timer1.button("🚀 Start Workout"):
@@ -262,7 +278,6 @@ with tab2:
 
         st.markdown("---")
 
-        # PHASE 1: WARM-UP GATED CHECKLIST
         if st.session_state.workout_started and not st.session_state.warmup_completed:
             st.markdown("### 🔥 Warm-Up Protocol")
             st.info("Complete the warm-up sequence before beginning your working sets. No logging required here.")
@@ -275,7 +290,6 @@ with tab2:
                 st.session_state.warmup_completed = True
                 st.rerun()
 
-        # PHASE 2: STREAMLINED LOGGING FOR MAIN EXERCISES ONLY
         elif st.session_state.workout_started and st.session_state.warmup_completed and not st.session_state.workout_completed:
             active_structure = parse_exercises_from_text(st.session_state.todays_workout)
             
@@ -313,7 +327,6 @@ with tab2:
                             st.session_state.current_set_num = 1
                         st.rerun()
             else:
-                # PHASE 3: COOLDOWN & SESSION WRAP-UP
                 st.markdown("### ❄️ Cooldown & Session Wrap-Up")
                 st.success("🎉 All prescribed working sets completed!")
                 st.info("**Cooldown Protocol:** 5–10 minutes easy walking.")
@@ -327,7 +340,6 @@ with tab2:
                     workout_notes = st.text_area("Overall Session Notes (Optional)", placeholder="Note any pain, excessive fatigue, or exceptional strength...")
                     
                     if st.form_submit_button("✅ Cooldown Done & Analyze Session"):
-                        # Stop the timer and lock metrics
                         elapsed = int(time.time() - st.session_state.workout_start_time)
                         m, s = divmod(elapsed, 60)
                         
@@ -342,12 +354,10 @@ with tab2:
                         st.session_state.workout_completed = True
                         st.rerun()
 
-        # PHASE 4: FINAL REPORT & ANALYST REVIEW
         if st.session_state.workout_completed:
             df_logs = pd.DataFrame(st.session_state.workout_logs)
             
             if not st.session_state.final_report:
-                # API Call 1: Assistant generates the execution report
                 with st.spinner("🤖 Assistant is compiling the Execution Report..."):
                     report_prompt = f"""Act as the Workout Assistant. Generate a Workout Execution Report based on these actual set logs:
 {df_logs.to_string(index=False)}
@@ -357,7 +367,6 @@ Format inside ONE clean monospaced code block."""
                     
                     st.session_state.final_report = generate_content(report_prompt)
                 
-                # API Call 2: Analyst evaluates the report for progression/inconsistencies
                 with st.spinner("🧠 Analyst is reviewing execution and checking for progression triggers..."):
                     analysis_prompt = f"""Act as the Workout Analyst. Review this Workout Execution Report:
 {st.session_state.final_report}
@@ -369,7 +378,6 @@ Perform a critical evaluation based on your instructions. Check for inconsistenc
                 st.rerun()
 
             else:
-                # Display Results
                 st.markdown("### 🏆 Final Workout Report")
                 st.code(st.session_state.final_report, language="text")
                 
