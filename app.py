@@ -11,7 +11,7 @@ st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 # Initialize modern GenAI Client
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
-MODEL_ID = 'gemini-2.5-flash'
+MODEL_ID = 'gemini-1.5-flash'
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
