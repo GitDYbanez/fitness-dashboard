@@ -12,8 +12,8 @@ st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
-# Model configuration using stable endpoint alias
-MODEL_NAME = 'gemini-2.5-flash'
+# Model configuration using supported legacy SDK alias
+MODEL_NAME = 'gemini-1.5-flash'
 model = genai.GenerativeModel(MODEL_NAME)
 
 # Session State Initialization
