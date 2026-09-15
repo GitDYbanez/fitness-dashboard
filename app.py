@@ -10,10 +10,37 @@ st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 API_KEY = st.secrets["GEMINI_API_KEY"]
-MODEL_ID = "gemini-1.5-flash"
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent?key={API_KEY}"
 
-# 2. Bulletproof REST API Helper Function
+# 2. Auto-Detect the Correct Model Endpoint for Your Specific API Key
+@st.cache_data
+def get_working_api_url(api_key):
+    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    resp = requests.get(list_url)
+    
+    fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    if resp.status_code == 200:
+        models = resp.json().get('models', [])
+        
+        # Priority 1: Find the exact flash model string your key supports
+        for m in models:
+            name = m.get('name', '')
+            methods = m.get('supportedGenerationMethods', [])
+            if 'flash' in name.lower() and 'generateContent' in methods:
+                return f"https://generativelanguage.googleapis.com/v1beta/{name}:generateContent?key={api_key}"
+        
+        # Priority 2: Fallback to ANY available Gemini model on your key
+        for m in models:
+            name = m.get('name', '')
+            methods = m.get('supportedGenerationMethods', [])
+            if 'gemini' in name.lower() and 'generateContent' in methods:
+                return f"https://generativelanguage.googleapis.com/v1beta/{name}:generateContent?key={api_key}"
+                
+    return fallback_url
+
+API_URL = get_working_api_url(API_KEY)
+
+# 3. Bulletproof REST API Helper Function
 def generate_content(prompt, image=None):
     parts = [{"text": prompt}]
     if image:
@@ -38,10 +65,9 @@ def generate_content(prompt, image=None):
         except Exception as e:
             return f"API Parsing Error: {str(e)} \n\n {response.text}"
     else:
-        # Returns the EXACT Google error message to the UI
-        return f"🚨 GOOGLE API REJECTION ({response.status_code}): {response.text}"
+        return f"🚨 GOOGLE API REJECTION ({response.status_code}): {response.text}\n\nAttempted URL: {API_URL}"
 
-# 3. Session State Initialization
+# 4. Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
     st.session_state.extracted_scale_metrics = None
 if 'extracted_sleep_metrics' not in st.session_state:
@@ -51,7 +77,7 @@ if 'todays_workout' not in st.session_state:
 if 'workout_logs' not in st.session_state:
     st.session_state.workout_logs = []
 
-# 4. Sidebar Data Inputs
+# 5. Sidebar Data Inputs
 st.sidebar.header("📸 Log Metrics via Screenshots")
 
 st.sidebar.subheader("1. Smart Scale Data")
@@ -88,7 +114,7 @@ if sleep_file is not None:
                 st.session_state.extracted_sleep_metrics = response_text
                 st.sidebar.success("Sleep Data Logged!")
 
-# 5. Main Tabs Setup
+# 6. Main Tabs Setup
 tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 
 # --- TAB 1: WORKOUT ANALYST ---
