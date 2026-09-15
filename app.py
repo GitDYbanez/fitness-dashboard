@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
+import requests
+import base64
+import io
 import datetime
 import time
-from google import genai
 from PIL import Image
 
 # 1. Page Config & API Setup
@@ -10,13 +12,13 @@ st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 API_KEY = st.secrets["GEMINI_API_KEY"]
-client = genai.Client(api_key=api_key)
-MODEL_ID = 'gemini-1.5-flash'
+MODEL_ID = "gemini-3.6-flash"
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent?key={API_KEY}"
 
 # Date Calculation (Tomorrow is Sep 16, 2026)
 tomorrow_date = datetime.date(2026, 9, 16)
 
-# Session State Initialization
+# Session State Initialization & Rotation Tracking
 if 'extracted_scale_metrics' not in st.session_state:
     st.session_state.extracted_scale_metrics = None
 if 'extracted_sleep_metrics' not in st.session_state:
@@ -34,19 +36,79 @@ if 'current_ex_index' not in st.session_state:
 if 'current_set_num' not in st.session_state:
     st.session_state.current_set_num = 1
 
-# Pre-defined structured exercises for Workout B (Sep 16, 2026) for streamlined logging
-WORKOUT_B_STRUCTURE = [
-    {"exercise": "45° Leg Press", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-    {"exercise": "Flat Dumbbell Bench Press", "sets": 3, "target_reps": "8–10", "target_rir": 3},
-    {"exercise": "Chest-Supported Row", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-    {"exercise": "Smith-Machine Romanian Deadlift", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-    {"exercise": "Leg Extension", "sets": 2, "target_reps": "12–15", "target_rir": 3},
-    {"exercise": "Reverse Pec Deck / Rear-Delt Machine", "sets": 3, "target_reps": "12–15", "target_rir": 3},
-    {"exercise": "Single-Arm Cable Lateral Raise", "sets": 3, "target_reps": "12–15/side", "target_rir": 3},
-    {"exercise": "Cable Biceps Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-    {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-    {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3}
-]
+# Track Rotation State (Default last completed: A, so next is B for Sep 16)
+if 'last_completed_workout' not in st.session_state:
+    st.session_state.last_completed_workout = "A"
+if 'active_workout_letter' not in st.session_state:
+    st.session_state.active_workout_letter = "B"
+
+# Exercise Structures for A, B, and C Full-Body Rotation
+ROTATION_STRUCTURES = {
+    "A": [
+        {"exercise": "Goblet Squat", "sets": 3, "target_reps": "10", "target_rir": 3},
+        {"exercise": "Incline Dumbbell Bench Press", "sets": 3, "target_reps": "10", "target_rir": 3},
+        {"exercise": "Lat Pulldown", "sets": 3, "target_reps": "8–12", "target_rir": 2},
+        {"exercise": "Dumbbell Romanian Deadlift", "sets": 3, "target_reps": "10", "target_rir": 3},
+        {"exercise": "Seated Leg Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Dumbbell Lateral Raise", "sets": 3, "target_reps": "13–15", "target_rir": 3},
+        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3},
+        {"exercise": "Dumbbell Curl", "sets": 2, "target_reps": "12", "target_rir": 3},
+        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Single-Leg Calf Raise", "sets": 2, "target_reps": "12", "target_rir": 3}
+    ],
+    "B": [
+        {"exercise": "45° Leg Press", "sets": 3, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Flat Dumbbell Bench Press", "sets": 3, "target_reps": "8–10", "target_rir": 3},
+        {"exercise": "Chest-Supported Row", "sets": 3, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Smith-Machine Romanian Deadlift", "sets": 3, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Leg Extension", "sets": 2, "target_reps": "12–15", "target_rir": 3},
+        {"exercise": "Reverse Pec Deck / Rear-Delt Machine", "sets": 3, "target_reps": "12–15", "target_rir": 3},
+        {"exercise": "Single-Arm Cable Lateral Raise", "sets": 3, "target_reps": "12–15/side", "target_rir": 3},
+        {"exercise": "Cable Biceps Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3}
+    ],
+    "C": [
+        {"exercise": "Dumbbell Step-Up", "sets": 3, "target_reps": "10–12/side", "target_rir": 3},
+        {"exercise": "Incline Dumbbell Bench Press", "sets": 3, "target_reps": "10", "target_rir": 3},
+        {"exercise": "Lat Pulldown", "sets": 3, "target_reps": "8–12", "target_rir": 2},
+        {"exercise": "Dumbbell Hip Thrust", "sets": 3, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Seated Leg Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Shoulder Press Machine", "sets": 3, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Direct Lateral-Delt Exercise", "sets": 3, "target_reps": "12–15", "target_rir": 3},
+        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3},
+        {"exercise": "Dumbbell Curl", "sets": 2, "target_reps": "12", "target_rir": 3},
+        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
+        {"exercise": "Single-Leg Calf Raise", "sets": 2, "target_reps": "12", "target_rir": 3}
+    ]
+}
+
+# Bulletproof REST API Helper Function
+def generate_content(prompt, image=None):
+    parts = [{"text": prompt}]
+    if image:
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        buffered = io.BytesIO()
+        image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        parts.append({
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": img_str
+            }
+        })
+    
+    payload = {"contents": [{"parts": parts}]}
+    response = requests.post(API_URL, headers={'Content-Type': 'application/json'}, json=payload)
+    
+    if response.status_code == 200:
+        try:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        except Exception as e:
+            return f"API Parsing Error: {str(e)} \n\n {response.text}"
+    else:
+        return f"🚨 GOOGLE API REJECTION ({response.status_code}): {response.text}"
 
 # Sidebar Data Inputs
 st.sidebar.header("📸 Log Metrics via Screenshots")
@@ -56,8 +118,8 @@ if scale_file is not None:
     scale_image = Image.open(scale_file)
     if st.sidebar.button("Process Scale Screenshot"):
         with st.spinner("Extracting body composition..."):
-            resp = client.models.generate_content(model=MODEL_ID, contents=["Extract scale metrics as key-value pairs.", scale_image])
-            st.session_state.extracted_scale_metrics = resp.text
+            resp = generate_content("Extract scale metrics as key-value pairs.", scale_image)
+            st.session_state.extracted_scale_metrics = resp
             st.sidebar.success("Scale Data Logged!")
 
 sleep_file = st.sidebar.file_uploader("Upload Sleep Screenshot", type=["png", "jpg", "jpeg"], key="sleep_upload")
@@ -65,8 +127,8 @@ if sleep_file is not None:
     sleep_image = Image.open(sleep_file)
     if st.sidebar.button("Process Sleep Screenshot"):
         with st.spinner("Extracting sleep performance..."):
-            resp = client.models.generate_content(model=MODEL_ID, contents=["Extract sleep metrics as bullet points.", sleep_image])
-            st.session_state.extracted_sleep_metrics = resp.text
+            resp = generate_content("Extract sleep metrics as bullet points.", sleep_image)
+            st.session_state.extracted_sleep_metrics = resp
             st.sidebar.success("Sleep Data Logged!")
 
 # Main Tabs Setup
@@ -81,34 +143,47 @@ with tab1:
     col2.metric("Target Body Fat", "15 - 18%")
     col3.metric("Milestone 1 Deadline", "Late Nov 2026")
     
-    # 1. Display Current User State Panel
-    with st.expander("👤 View Master Current User State & Baselines", expanded=False):
+    # 1. Current User State Panel
+    with st.expander("👤 View Master Current User State & Baselines", expanded=True):
         st.markdown("""
         * **Profile & Goals:** Male, 38 years old, 175 cm, 75.50 kg. Target: ~70 kg / ~20–22% BF (Milestone 1 by late Nov/Dec 2026). Secondary focus: Lateral delts.
-        * **Current Program:** Default A/B/C Full-Body Split (Scheduled: **Workout B** for Sep 16, 2026).
+        * **Current Program:** Default A/B/C Full-Body Split Rotation.
         * **Key Equipment Adaptations:** Using 45° Leg Press and Smith-Machine RDL to bypass goblet squat and dumbbell forearm/grip bottlenecks.
         * **Conditioning:** Tue/Thu jog/walk intervals (2 min jog / 1 min walk).
         * **Supplements:** Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes.
         """)
     
-    st.markdown(f"**Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}` (Automatically prescribes **Workout B**).")
-    
+    # 2. Intelligent Rotation & Date Detection
+    col_rot1, col_rot2 = st.columns(2)
+    with col_rot1:
+        st.markdown(f"**Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`")
+    with col_rot2:
+        # Allow user to view or override rotation state if needed
+        next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
+        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} $\rightarrow$ **Scheduled Next:** Workout **{next_letter}**")
+        st.session_state.active_workout_letter = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
+
     if st.button("Generate Today's Workout"):
-        with st.spinner("Analyzing recovery & prescribing Workout B..."):
+        with st.spinner(f"Analyzing recovery & prescribing Workout {st.session_state.active_workout_letter}..."):
             body_data = st.session_state.extracted_scale_metrics or "Weight: 75.50 kg, BF: 27.1%"
             sleep_data = st.session_state.extracted_sleep_metrics or "Sleep: 9h 40m, Score: 71"
             
-            prompt_text = f"""
-            Act as my Workout Analyst. 
-            Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}).
-            Latest Scale Data: {body_data}
-            Latest Sleep Data: {sleep_data}
-            Based on the rotation and date, prescribe Workout B.
-            Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
-            """
-            response = client.models.generate_content(model=MODEL_ID, contents=[prompt_text])
-            st.session_state.todays_workout = response.text
-            st.success("Workout B Generated Successfully! Switch to the Live Assistant tab to execute.")
+            prompt_text = (
+                f"Act as my Workout Analyst. "
+                f"Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). "
+                f"Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. "
+                f"Prescribing: Workout {st.session_state.active_workout_letter}. "
+                f"Latest Scale Data: {body_data}. "
+                f"Latest Sleep Data: {sleep_data}. "
+                "Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown."
+            )
+            
+            response_text = generate_content(prompt_text)
+            if "🚨 GOOGLE API REJECTION" in response_text:
+                st.error(response_text)
+            else:
+                st.session_state.todays_workout = response_text
+                st.success(f"Workout {st.session_state.active_workout_letter} Generated Successfully! Switch to the Live Assistant tab to execute.")
             
     if st.session_state.todays_workout:
         st.subheader("Prescribed Routine")
@@ -121,7 +196,7 @@ with tab2:
     if not st.session_state.todays_workout:
         st.info("Please generate Today's Workout in the Workout Analyst tab first!")
     else:
-        # 4. Workout Start & Stopwatch Timer
+        # 4. Workout Stopwatch / Timer
         col_timer1, col_timer2 = st.columns([1, 3])
         if not st.session_state.workout_started:
             if col_timer1.button("🚀 Start Workout"):
@@ -134,18 +209,22 @@ with tab2:
             col_timer1.markdown(f"⏱️ **Session Time:** `{mins:02d}:{secs:02d}`")
             if col_timer2.button("🛑 Finish Session"):
                 st.session_state.workout_started = False
+                # Update rotation tracker upon finishing session
+                st.session_state.last_completed_workout = st.session_state.active_workout_letter
 
         st.markdown("---")
         
-        # 3. Streamlined Active Set Logger (No manual exercise typing required)
-        if st.session_state.current_ex_index < len(WORKOUT_B_STRUCTURE):
-            current_item = WORKOUT_B_STRUCTURE[st.session_state.current_ex_index]
+        # 3. Dynamic Streamlined Active Set Logger (Matches active Workout A, B, or C)
+        active_structure = ROTATION_STRUCTURES[st.session_state.active_workout_letter]
+        
+        if st.session_state.current_ex_index < len(active_structure):
+            current_item = active_structure[st.session_state.current_ex_index]
             ex_name = current_item["exercise"]
             total_sets = current_item["sets"]
             target_reps = current_item["target_reps"]
             target_rir = current_item["target_rir"]
             
-            st.markdown(f"### 🔥 Current Exercise: **{ex_name}**")
+            st.markdown(f"### 🔥 Workout {st.session_state.active_workout_letter} | Current Exercise: **{ex_name}**")
             st.info(f"**Set {st.session_state.current_set_num} of {total_sets}** | Target: {target_reps} reps @ RIR {target_rir}")
             
             with st.form("streamlined_logger"):
@@ -158,6 +237,7 @@ with tab2:
                 submitted = st.form_submit_button("✅ Log Set & Next")
                 if submitted:
                     st.session_state.workout_logs.append({
+                        "Workout": f"Workout {st.session_state.active_workout_letter}",
                         "Exercise": ex_name,
                         "Set": st.session_state.current_set_num,
                         "Weight (kg)": act_weight,
@@ -166,7 +246,6 @@ with tab2:
                         "Notes": act_notes
                     })
                     
-                    # Advance set or exercise automatically
                     if st.session_state.current_set_num < total_sets:
                         st.session_state.current_set_num += 1
                     else:
@@ -174,7 +253,10 @@ with tab2:
                         st.session_state.current_set_num = 1
                     st.rerun()
         else:
-            st.success("🎉 All prescribed sets completed for today's session!")
+            st.success(f"🎉 All prescribed sets completed for Workout {st.session_state.active_workout_letter}!")
+            if st.button("Mark Workout as Completed & Advance Rotation"):
+                st.session_state.last_completed_workout = st.session_state.active_workout_letter
+                st.success(f"Rotation updated! Next session will advance past Workout {st.session_state.active_workout_letter}.")
 
         # Display Live Session Log Table
         if st.session_state.workout_logs:
@@ -183,11 +265,14 @@ with tab2:
             st.table(df_logs)
             
             if st.button("Generate Final Workout Execution Report"):
-                report_prompt = f"""
-                Act as the Workout Assistant. Generate a clean Workout Execution Report based on these actual set logs:
-                {df_logs.to_string(index=False)}
-                Format inside ONE clean monospaced code block ready to copy back to the Analyst.
-                """
-                report_resp = client.models.generate_content(model=MODEL_ID, contents=[report_prompt])
-                st.markdown("### 🏆 Final Workout Report")
-                st.code(report_resp.text, language="text")
+                report_prompt = (
+                    f"Act as the Workout Assistant. Generate a clean Workout Execution Report for Workout {st.session_state.active_workout_letter} based on these actual set logs: "
+                    f"{df_logs.to_string(index=False)}. "
+                    "Format inside ONE clean monospaced code block ready to copy back to the Analyst."
+                )
+                report_resp = generate_content(report_prompt)
+                if "🚨 GOOGLE API REJECTION" in report_resp:
+                    st.error(report_resp)
+                else:
+                    st.markdown("### 🏆 Final Workout Report")
+                    st.code(report_resp, language="text")
