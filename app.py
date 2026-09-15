@@ -87,10 +87,10 @@ with tab1:
                 "Do not include conversational greetings or setup intros."
             )
             
-            # Simple string list in contents parameter resolves ClientError
+            # Explicit list payload structure prevents ClientError on generate_content
             response = client.models.generate_content(
                 model=MODEL_ID,
-                contents=prompt_text
+                contents=[prompt_text]
             )
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
@@ -145,7 +145,7 @@ with tab2:
                 )
                 report_response = client.models.generate_content(
                     model=MODEL_ID,
-                    contents=report_text
+                    contents=[report_text]
                 )
                 st.markdown("### 🏆 Completed Workout Report")
                 st.code(report_response.text, language="text")
