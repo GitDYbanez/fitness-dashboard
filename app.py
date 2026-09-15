@@ -5,99 +5,131 @@ import plotly.express as px
 from PIL import Image
 
 # 1. Page Config & API Setup
-st.set_page_config(page_title="Fitness & Workout Dashboard", layout="wide")
-st.title("🏋️‍♂️ Fitness & Workout Analyst Dashboard")
+st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
+st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Initialize session state for extracted metrics
+# Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
     st.session_state.extracted_scale_metrics = None
 if 'extracted_sleep_metrics' not in st.session_state:
     st.session_state.extracted_sleep_metrics = None
+if 'todays_workout' not in st.session_state:
+    st.session_state.todays_workout = ""
+if 'workout_logs' not in st.session_state:
+    st.session_state.workout_logs = []
 
-# 2. Sidebar Screenshot Uploaders
+# Sidebar Data Inputs
 st.sidebar.header("📸 Log Metrics via Screenshots")
 
-# --- Smart Scale Section ---
+# Smart Scale Section
 st.sidebar.subheader("1. Smart Scale Data")
 scale_file = st.sidebar.file_uploader("Upload Scale Screenshot", type=["png", "jpg", "jpeg"], key="scale_upload")
-
 if scale_file is not None:
     scale_image = Image.open(scale_file)
-    st.sidebar.image(scale_image, caption="Scale Screenshot", use_column_width=True)
-    
     if st.sidebar.button("Process Scale Screenshot"):
-        with st.spinner("Extracting body composition data..."):
+        with st.spinner("Extracting body composition..."):
             scale_prompt = (
-                "You are an expert fitness data analyst. "
-                "Examine this smart scale app screenshot and extract EVERY available metric. "
-                "Include Date, Weight (kg), Body Fat %, Muscle Mass, Skeletal Muscle Mass, "
-                "Visceral Fat, Subcutaneous Fat, Body Water, BMR, Protein, Bone Mass, Heart Rate, and Body Age. "
-                "Format the output as a clear bulleted list of key-value pairs."
+                "Extract all smart scale metrics (Weight, Body Fat %, Muscle Mass, Visceral Fat, BMR, etc.) "
+                "as a bulleted list of key-value pairs."
             )
             response = model.generate_content([scale_prompt, scale_image])
             st.session_state.extracted_scale_metrics = response.text
-            st.sidebar.success("Scale Data Extracted!")
+            st.sidebar.success("Scale Data Logged!")
 
-# --- Sleep Tracker Section ---
-st.sidebar.subheader("2. Sleep Tracker Data (Zepp / Any App)")
+# Sleep Tracker Section
+st.sidebar.subheader("2. Sleep Tracker Data")
 sleep_file = st.sidebar.file_uploader("Upload Sleep Screenshot", type=["png", "jpg", "jpeg"], key="sleep_upload")
-
 if sleep_file is not None:
     sleep_image = Image.open(sleep_file)
-    st.sidebar.image(sleep_image, caption="Sleep Screenshot", use_column_width=True)
-    
     if st.sidebar.button("Process Sleep Screenshot"):
-        with st.spinner("Extracting sleep performance data..."):
+        with st.spinner("Extracting sleep performance..."):
             sleep_prompt = (
-                "You are an expert fitness data analyst. "
-                "Examine this sleep tracking screenshot (e.g. Zepp, Garmin, Apple Health, Oura). "
-                "Extract the following values: "
-                "1. Total Sleep Duration (e.g., 9:40 or 9 hours 40 minutes) "
-                "2. Overall Sleep Score and Rating (e.g., 71 FAIR) "
-                "3. Any insights or sleep stage details mentioned (e.g., low deep sleep warning, REM, light sleep). "
-                "Format the output as a clear bulleted list."
+                "Extract sleep metrics (Total Sleep Duration, Sleep Score, Quality Rating, Deep Sleep, etc.) "
+                "from this screenshot as a bulleted list."
             )
             response = model.generate_content([sleep_prompt, sleep_image])
             st.session_state.extracted_sleep_metrics = response.text
-            st.sidebar.success("Sleep Data Extracted!")
+            st.sidebar.success("Sleep Data Logged!")
 
-# Display Extracted Data in Sidebar
-if st.session_state.extracted_scale_metrics:
-    st.sidebar.markdown("### 📋 Body Composition")
-    st.sidebar.write(st.session_state.extracted_scale_metrics)
+# Main Tabs Setup
+tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 
-if st.session_state.extracted_sleep_metrics:
-    st.sidebar.markdown("### 😴 Sleep & Recovery")
-    st.sidebar.write(st.session_state.extracted_sleep_metrics)
-
-# 3. Main Dashboard Display
-st.header("Goal Progress")
-col1, col2, col3 = st.columns(3)
-
-col1.metric(label="Target Weight", value="70.0 kg")
-col2.metric(label="Target Body Fat", value="15 - 18%")
-col3.metric(label="Milestone 1 Deadline", value="Late Nov 2026")
-
-# 4. Full Workout Analyst Engine
-st.header("Workout Analyst Engine")
-if st.button("Run Full Analysis"):
-    if st.session_state.extracted_scale_metrics or st.session_state.extracted_sleep_metrics:
-        with st.spinner("Running full Workout Analyst workflow..."):
+# --- TAB 1: WORKOUT ANALYST ---
+with tab1:
+    st.header("Program Continuity & Planning")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Target Weight", "70.0 kg")
+    col2.metric("Target Body Fat", "15 - 18%")
+    col3.metric("Milestone 1 Deadline", "Late Nov 2026")
+    
+    if st.button("Generate Today's Workout"):
+        with st.spinner("Analyzing recovery & prescribing workout..."):
+            body_data = st.session_state.extracted_scale_metrics or "No new scale data."
+            sleep_data = st.session_state.extracted_sleep_metrics or "No new sleep data."
             
-            body_data = st.session_state.extracted_scale_metrics or "No scale data uploaded."
-            sleep_data = st.session_state.extracted_sleep_metrics or "No sleep data uploaded."
+            prompt = f"""
+            Act as my Workout Analyst. 
+            Latest Scale Data: {body_data}
+            Latest Sleep Data: {sleep_data}
+            Generate Today's Workout following the A/B/C full-body split progression.
+            Provide the complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
+            """
+            response = model.generate_content(prompt)
+            st.session_state.todays_workout = response.text
+            st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
             
-            analysis_prompt = (
-                f"Perform full Workout Analyst workflow based on the latest metrics provided below.\n\n"
-                f"--- SMART SCALE METRICS ---\n{body_data}\n\n"
-                f"--- SLEEP & RECOVERY METRICS ---\n{sleep_data}\n\n"
-                f"Analyze trends across body composition (weight, body fat, muscle mass, visceral fat, etc.) "
-                f"and recovery (sleep duration, sleep score, readiness) to provide programming recommendations."
-            )
-            analysis_response = model.generate_content(analysis_prompt)
-            st.write(analysis_response.text)
+    if st.session_state.todays_workout:
+        st.subheader("Prescribed Routine")
+        st.code(st.session_state.todays_workout, language="text")
+
+# --- TAB 2: LIVE WORKOUT ASSISTANT ---
+with tab2:
+    st.header("Gym Execution & Dynamic Logging")
+    
+    if not st.session_state.todays_workout:
+        st.info("Please generate Today's Workout in the Workout Analyst tab first!")
     else:
-        st.warning("Please upload and process at least one screenshot first!")
+        st.markdown("### 📋 Current Session Plan")
+        st.text(st.session_state.todays_workout)
+        
+        st.markdown("---")
+        st.subheader("📝 Quick Log Set Execution")
+        
+        with st.form("set_logger"):
+            ex_name = st.text_input("Exercise Name", placeholder="e.g., Flat Dumbbell Bench Press")
+            col_weight, col_reps, col_rir = st.columns(3)
+            actual_weight = col_weight.number_input("Weight Used (kg)", value=0.0, step=0.5)
+            actual_reps = col_reps.number_input("Reps Completed", value=0, step=1)
+            actual_rir = col_rir.number_input("RIR Left", value=2, step=1)
+            notes = st.text_input("Execution Notes", placeholder="e.g., Good speed, form intact")
+            
+            submitted = st.form_submit_button("Log Completed Set")
+            if submitted and ex_name:
+                st.session_state.workout_logs.append({
+                    "Exercise": ex_name,
+                    "Weight (kg)": actual_weight,
+                    "Reps": actual_reps,
+                    "RIR": actual_rir,
+                    "Notes": notes
+                })
+                st.success(f"Logged: {ex_name} - {actual_weight}kg x {actual_reps} reps")
+        
+        # Display Live Session Log
+        if st.session_state.workout_logs:
+            st.subheader("Session Progress")
+            df_logs = pd.DataFrame(st.session_state.workout_logs)
+            st.table(df_logs)
+            
+            if st.button("Finish Workout & Generate Execution Report"):
+                report_prompt = f"""
+                Act as the Workout Assistant. Generate a clean Workout Execution Report based on these actual set logs:
+                {df_logs.to_string(index=False)}
+                Format as a clear summary code block with Prescribed vs. Actual performance and completion status.
+                """
+                report_response = model.generate_content(report_prompt)
+                st.markdown("### 🏆 Completed Workout Report")
+                st.code(report_response.text, language="text")
