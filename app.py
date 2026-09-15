@@ -9,7 +9,7 @@ st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-pro')
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
