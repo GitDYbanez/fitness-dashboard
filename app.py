@@ -5,6 +5,7 @@ import base64
 import io
 import datetime
 import time
+import re
 from PIL import Image
 
 # 1. Page Config & API Setup
@@ -42,46 +43,33 @@ if 'last_completed_workout' not in st.session_state:
 if 'active_workout_letter' not in st.session_state:
     st.session_state.active_workout_letter = "B"
 
-# Exercise Structures for A, B, and C Full-Body Rotation
-ROTATION_STRUCTURES = {
-    "A": [
-        {"exercise": "Goblet Squat", "sets": 3, "target_reps": "10", "target_rir": 3},
-        {"exercise": "Incline Dumbbell Bench Press", "sets": 3, "target_reps": "10", "target_rir": 3},
-        {"exercise": "Lat Pulldown", "sets": 3, "target_reps": "8–12", "target_rir": 2},
-        {"exercise": "Dumbbell Romanian Deadlift", "sets": 3, "target_reps": "10", "target_rir": 3},
-        {"exercise": "Seated Leg Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Dumbbell Lateral Raise", "sets": 3, "target_reps": "13–15", "target_rir": 3},
-        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3},
-        {"exercise": "Dumbbell Curl", "sets": 2, "target_reps": "12", "target_rir": 3},
-        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Single-Leg Calf Raise", "sets": 2, "target_reps": "12", "target_rir": 3}
-    ],
-    "B": [
-        {"exercise": "45° Leg Press", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Flat Dumbbell Bench Press", "sets": 3, "target_reps": "8–10", "target_rir": 3},
-        {"exercise": "Chest-Supported Row", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Smith-Machine Romanian Deadlift", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Leg Extension", "sets": 2, "target_reps": "12–15", "target_rir": 3},
-        {"exercise": "Reverse Pec Deck / Rear-Delt Machine", "sets": 3, "target_reps": "12–15", "target_rir": 3},
-        {"exercise": "Single-Arm Cable Lateral Raise", "sets": 3, "target_reps": "12–15/side", "target_rir": 3},
-        {"exercise": "Cable Biceps Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3}
-    ],
-    "C": [
-        {"exercise": "Dumbbell Step-Up", "sets": 3, "target_reps": "10–12/side", "target_rir": 3},
-        {"exercise": "Incline Dumbbell Bench Press", "sets": 3, "target_reps": "10", "target_rir": 3},
-        {"exercise": "Lat Pulldown", "sets": 3, "target_reps": "8–12", "target_rir": 2},
-        {"exercise": "Dumbbell Hip Thrust", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Seated Leg Curl", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Shoulder Press Machine", "sets": 3, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Direct Lateral-Delt Exercise", "sets": 3, "target_reps": "12–15", "target_rir": 3},
-        {"exercise": "Reverse Crunch", "sets": 2, "target_reps": "12–15", "target_rir": 3},
-        {"exercise": "Dumbbell Curl", "sets": 2, "target_reps": "12", "target_rir": 3},
-        {"exercise": "Cable Triceps Pressdown", "sets": 2, "target_reps": "10–12", "target_rir": 3},
-        {"exercise": "Single-Leg Calf Raise", "sets": 2, "target_reps": "12", "target_rir": 3}
-    ]
-}
+# Helper Function to Dynamically Parse Exercises from Analyst Text Output
+def parse_exercises_from_text(workout_text):
+    exercises = []
+    lines = workout_text.split('\n')
+    for line in lines:
+        # Matches lines like "1. 45° Leg Press — 3 sets × 10–12 reps..." or similar patterns
+        match = re.match(r'^\s*(\d+)\.\s+(.*?)\s+[—–-]\s+(\d+)\s+sets?', line, re.IGNORECASE)
+        if match:
+            ex_name = match.group(2).strip()
+            sets = int(match.group(3))
+            
+            # Extract rep range if present
+            rep_match = re.search(r'(\d+(?:[–-]\d+)?)\s+reps?', line, re.IGNORECASE)
+            target_reps = rep_match.group(1) if rep_match else "10"
+            
+            exercises.append({
+                "exercise": ex_name,
+                "sets": sets,
+                "target_reps": target_reps,
+                "target_rir": 3
+            })
+            
+    # Fallback default if parsing finds nothing (e.g. custom format)
+    if not exercises:
+        exercises = [{"exercise": "General Working Exercise", "sets": 3, "target_reps": "10", "target_rir": 3}]
+        
+    return exercises
 
 # REST API Helper
 def generate_content(prompt, image=None):
@@ -133,7 +121,7 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
-    # Side-by-Side Clean Metrics Layout (Weight & Body Fat compared directly)
+    # Side-by-Side Clean Metrics Layout
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Current Weight", "75.50 kg")
     m2.metric("Target Weight", "70.0 kg", "-5.5 kg")
@@ -183,7 +171,6 @@ with tab1:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
         st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} → **Scheduled Next:** Workout **{next_letter}**")
     with col_rot2:
-        # Manual Override Selector: Allows you to force a specific workout letter if training out of sequence.
         override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
         st.session_state.active_workout_letter = override_choice
 
@@ -205,6 +192,9 @@ Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, R
                 st.error(response_text)
             else:
                 st.session_state.todays_workout = response_text
+                # Reset logger index when a new workout is generated
+                st.session_state.current_ex_index = 0
+                st.session_state.current_set_num = 1
                 st.success(f"Workout {st.session_state.active_workout_letter} Generated Successfully! Switch to the Live Assistant tab to execute.")
             
     if st.session_state.todays_workout:
@@ -235,8 +225,8 @@ with tab2:
 
         st.markdown("---")
         
-        # Streamlined Active Set Logger
-        active_structure = ROTATION_STRUCTURES[st.session_state.active_workout_letter]
+        # Dynamically parse exercises directly from the Analyst's generated workout text
+        active_structure = parse_exercises_from_text(st.session_state.todays_workout)
         
         if st.session_state.current_ex_index < len(active_structure):
             current_item = active_structure[st.session_state.current_ex_index]
