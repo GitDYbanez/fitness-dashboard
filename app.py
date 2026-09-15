@@ -170,21 +170,20 @@ with tab1:
             * **Key Adaptations:** 45° Leg Press & Smith-Machine RDL used to bypass grip bottlenecks.
             """)
             
-            st.markdown("#### **Supplements**")
-            st.markdown("- Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes.")
+            st.markdown("### 💊 Supplements")
+            st.markdown("""
+            * Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes.
+            """)
 
     st.markdown("---")
 
-    # Rotation & Date Status
+    # Rotation Status & Manual Override Control
     col_rot1, col_rot2 = st.columns(2)
     with col_rot1:
-        st.markdown(f"📅 **Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`")
-    with col_rot2:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
-        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} $\rightarrow$ **Scheduled Next:** Workout **{next_letter}**")
-        
-        # Manual Override Selector Explained:
-        # Allows you to manually force a specific workout letter if you ever train out of sequence.
+        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} → **Scheduled Next:** Workout **{next_letter}**")
+    with col_rot2:
+        # Manual Override Selector: Allows you to force a specific workout letter if training out of sequence.
         override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
         st.session_state.active_workout_letter = override_choice
 
