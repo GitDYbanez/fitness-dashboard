@@ -135,11 +135,11 @@ with tab1:
     
     # Side-by-Side Clean Metrics Layout
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Current Weight", "75.50 kg")
-    m2.metric("Target Weight", "70.0 kg", "-5.5 kg")
-    m3.metric("Current Body Fat", "27.1%")
-    m4.metric("Target Body Fat", "15–18%")
-    m5.metric("Milestone 1", "Late Nov 2026")
+    m1.metric("Current Weight", "75.50 kg")[cite: 1]
+    m2.metric("Target Weight", "70.0 kg", "-5.5 kg")[cite: 1]
+    m3.metric("Current Body Fat", "27.1%")[cite: 1]
+    m4.metric("Target Body Fat", "15–18%")[cite: 1]
+    m5.metric("Milestone 1", "Late Nov 2026")[cite: 1]
     
     st.markdown("---")
 
@@ -148,7 +148,7 @@ with tab1:
         col_u1, col_u2 = st.columns(2)
         with col_u1:
             st.markdown("#### **Profile & Goals**")
-            st.markdown("- **Age / Sex:** 38 years old[cite: 1], Male[cite: 1]\n- **Height:** 175 cm[cite: 1]\n- **Primary Goal:** Fat loss (abdominal/love handles)[cite: 1]\n- **Secondary Goal:** Lateral delt development[cite: 1]\n- **Milestone 1 Target:** ~70 kg / ~20–22% BF[cite: 1]")
+            st.markdown("- **Age / Sex:** 38 years old, Male[cite: 1]\n- **Height:** 175 cm[cite: 1]\n- **Primary Goal:** Fat loss (abdominal/love handles)[cite: 1]\n- **Secondary Goal:** Lateral delt development[cite: 1]\n- **Milestone 1 Target:** ~70 kg / ~20–22% BF[cite: 1]")
             
             st.markdown("#### **Conditioning & Recovery**")
             st.markdown("- **Conditioning:** Tue/Thu jog/walk (2m jog / 1m walk)[cite: 1]\n- **Recent Sleep:** 9h 40m (Score: 71)[cite: 1]")
@@ -165,10 +165,10 @@ with tab1:
     # Rotation & Date Status
     col_rot1, col_rot2 = st.columns(2)
     with col_rot1:
-        st.markdown(f"📅 **Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`[cite: 1, 2]")
+        st.markdown(f"📅 **Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`")[cite: 1, 2]
     with col_rot2:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
-        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} &rarr; **Scheduled Next:** Workout **{next_letter}**[cite: 1]")
+        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} → **Scheduled Next:** Workout **{next_letter}**")[cite: 1]
         
         # Manual Override Selector
         override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
@@ -179,15 +179,14 @@ with tab1:
             body_data = st.session_state.extracted_scale_metrics or "Weight: 75.50 kg, BF: 27.1%"[cite: 1]
             sleep_data = st.session_state.extracted_sleep_metrics or "Sleep: 9h 40m, Score: 71"[cite: 1]
             
-            prompt_text = (
-                f"Act as my Workout Analyst. "
-                f"Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). "[cite: 1, 2]
-                f"Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. "[cite: 1]
-                f"Prescribing: Workout {st.session_state.active_workout_letter}. "
-                f"Latest Scale Data: {body_data}. "[cite: 1]
-                f"Latest Sleep Data: {sleep_data}. "[cite: 1]
-                "Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown."[cite: 1, 2]
-            )
+            # Clean triple-quoted multi-line string preventing any syntax errors
+            prompt_text = f"""Act as my Workout Analyst. 
+Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). 
+Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. 
+Prescribing: Workout {st.session_state.active_workout_letter}. 
+Latest Scale Data: {body_data}. 
+Latest Sleep Data: {sleep_data}. 
+Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown."""
             
             response_text = generate_content(prompt_text)
             if "🚨 GOOGLE API REJECTION" in response_text:
@@ -274,12 +273,11 @@ with tab2:
             df_logs = pd.DataFrame(st.session_state.workout_logs)
             st.table(df_logs)
             
-            if st.button("Generate Final Workout Execution Report"):
-                report_prompt = (
-                    f"Act as the Workout Assistant. Generate a clean Workout Execution Report for Workout {st.session_state.active_workout_letter} based on these actual set logs: "
-                    f"{df_logs.to_string(index=False)}. "
-                    "Format inside ONE clean monospaced code block ready to copy back to the Analyst."
-                )
+            if st.button("Finish Workout & Generate Execution Report"):
+                report_prompt = f"""Act as the Workout Assistant. Generate a clean Workout Execution Report for Workout {st.session_state.active_workout_letter} based on these actual set logs: 
+{df_logs.to_string(index=False)}. 
+Format inside ONE clean monospaced code block ready to copy back to the Analyst."""
+                
                 report_resp = generate_content(report_prompt)
                 if "🚨 GOOGLE API REJECTION" in report_resp:
                     st.error(report_resp)
