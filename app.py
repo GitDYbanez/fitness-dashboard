@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+from google import genai
 import plotly.express as px
 from PIL import Image
 
@@ -8,13 +8,10 @@ from PIL import Image
 st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
-# Configure API Key
+# Initialize modern GenAI Client
 api_key = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=api_key)
-
-# Model configuration using supported legacy SDK alias
-MODEL_NAME = 'gemini-1.5-flash'
-model = genai.GenerativeModel(MODEL_NAME)
+client = genai.Client(api_key=api_key)
+MODEL_ID = 'gemini-2.5-flash'
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
@@ -40,7 +37,10 @@ if scale_file is not None:
                 "Extract all smart scale metrics (Weight, Body Fat %, Muscle Mass, Visceral Fat, BMR, etc.) "
                 "as a bulleted list of key-value pairs."
             )
-            response = model.generate_content([scale_prompt, scale_image])
+            response = client.models.generate_content(
+                model=MODEL_ID,
+                contents=[scale_prompt, scale_image]
+            )
             st.session_state.extracted_scale_metrics = response.text
             st.sidebar.success("Scale Data Logged!")
 
@@ -55,7 +55,10 @@ if sleep_file is not None:
                 "Extract sleep metrics (Total Sleep Duration, Sleep Score, Quality Rating, Deep Sleep, etc.) "
                 "from this screenshot as a bulleted list."
             )
-            response = model.generate_content([sleep_prompt, sleep_image])
+            response = client.models.generate_content(
+                model=MODEL_ID,
+                contents=[sleep_prompt, sleep_image]
+            )
             st.session_state.extracted_sleep_metrics = response.text
             st.sidebar.success("Sleep Data Logged!")
 
@@ -84,7 +87,10 @@ with tab1:
             Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
             Do not include conversational greetings or setup intros.
             """
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=MODEL_ID,
+                contents=prompt
+            )
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
             
@@ -136,6 +142,9 @@ with tab2:
                 {df_logs.to_string(index=False)}
                 Format as a clear summary code block with Prescribed vs. Actual performance and completion status.
                 """
-                report_response = model.generate_content(report_prompt)
+                report_response = client.models.generate_content(
+                    model=MODEL_ID,
+                    contents=report_prompt
+                )
                 st.markdown("### 🏆 Completed Workout Report")
                 st.code(report_response.text, language="text")
