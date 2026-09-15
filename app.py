@@ -1,18 +1,17 @@
 import streamlit as st
 import pandas as pd
 from google import genai
+from google.genai import types
 from PIL import Image
 
 # 1. Page Config & API Setup
 st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
-# Initialize modern GenAI Client
+# Initialize GenAI Client using modern google-genai SDK
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
-
-# CRITICAL FIX: Explicit resource namespace for the google-genai SDK
-MODEL_ID = 'models/gemini-1.5-flash'
+MODEL_ID = 'gemini-1.5-flash'
 
 # Session State Initialization
 if 'extracted_scale_metrics' not in st.session_state:
@@ -80,7 +79,7 @@ with tab1:
             body_data = st.session_state.extracted_scale_metrics or "No new scale data."
             sleep_data = st.session_state.extracted_sleep_metrics or "No new sleep data."
             
-            prompt = f"""
+            prompt_text = f"""
             Act as my Workout Analyst. 
             Latest Scale Data: {body_data}
             Latest Sleep Data: {sleep_data}
@@ -88,9 +87,13 @@ with tab1:
             Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
             Do not include conversational greetings or setup intros.
             """
+            
+            # EXACT FIX: Wrapped text string inside types.Content and types.Part.from_text
             response = client.models.generate_content(
                 model=MODEL_ID,
-                contents=prompt
+                contents=types.Content(
+                    parts=[types.Part.from_text(text=prompt_text)]
+                )
             )
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
@@ -138,14 +141,16 @@ with tab2:
             st.table(df_logs)
             
             if st.button("Finish Workout & Generate Execution Report"):
-                report_prompt = f"""
+                report_text = f"""
                 Act as the Workout Assistant. Generate a clean Workout Execution Report based on these actual set logs:
                 {df_logs.to_string(index=False)}
                 Format as a clear summary code block with Prescribed vs. Actual performance and completion status.
                 """
                 report_response = client.models.generate_content(
                     model=MODEL_ID,
-                    contents=report_prompt
+                    contents=types.Content(
+                        parts=[types.Part.from_text(text=report_text)]
+                    )
                 )
                 st.markdown("### 🏆 Completed Workout Report")
                 st.code(report_response.text, language="text")
