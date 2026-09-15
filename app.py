@@ -15,7 +15,7 @@ API_KEY = st.secrets["GEMINI_API_KEY"]
 MODEL_ID = "gemini-3.6-flash"
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent?key={API_KEY}"
 
-# Date Calculation (Tomorrow is Sep 16, 2026)[cite: 1, 2]
+# Date Calculation (Tomorrow is Sep 16, 2026)
 tomorrow_date = datetime.date(2026, 9, 16)
 
 # Session State Initialization & Rotation Tracking
@@ -36,13 +36,13 @@ if 'current_ex_index' not in st.session_state:
 if 'current_set_num' not in st.session_state:
     st.session_state.current_set_num = 1
 
-# Track Rotation State (Default last completed: A, so next is B)[cite: 1]
+# Track Rotation State (Default last completed: A, so next is B)
 if 'last_completed_workout' not in st.session_state:
     st.session_state.last_completed_workout = "A"
 if 'active_workout_letter' not in st.session_state:
     st.session_state.active_workout_letter = "B"
 
-# Exercise Structures for A, B, and C Full-Body Rotation[cite: 1]
+# Exercise Structures for A, B, and C Full-Body Rotation
 ROTATION_STRUCTURES = {
     "A": [
         {"exercise": "Goblet Squat", "sets": 3, "target_reps": "10", "target_rir": 3},
@@ -133,13 +133,13 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
-    # Side-by-Side Clean Metrics Layout
+    # Side-by-Side Clean Metrics Layout (Weight & Body Fat compared directly)
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Current Weight", "75.50 kg")[cite: 1]
-    m2.metric("Target Weight", "70.0 kg", "-5.5 kg")[cite: 1]
-    m3.metric("Current Body Fat", "27.1%")[cite: 1]
-    m4.metric("Target Body Fat", "15–18%")[cite: 1]
-    m5.metric("Milestone 1", "Late Nov 2026")[cite: 1]
+    m1.metric("Current Weight", "75.50 kg")
+    m2.metric("Target Weight", "70.0 kg", "-5.5 kg")
+    m3.metric("Current Body Fat", "27.1%")
+    m4.metric("Target Body Fat", "15–18%")
+    m5.metric("Milestone 1", "Late Nov 2026")
     
     st.markdown("---")
 
@@ -147,39 +147,52 @@ with tab1:
     with st.expander("👤 View Master Current User State & Baselines", expanded=False):
         col_u1, col_u2 = st.columns(2)
         with col_u1:
-            st.markdown("#### **Profile & Goals**")
-            st.markdown("- **Age / Sex:** 38 years old, Male[cite: 1]\n- **Height:** 175 cm[cite: 1]\n- **Primary Goal:** Fat loss (abdominal/love handles)[cite: 1]\n- **Secondary Goal:** Lateral delt development[cite: 1]\n- **Milestone 1 Target:** ~70 kg / ~20–22% BF[cite: 1]")
+            st.markdown("### 📋 Profile & Goals")
+            st.markdown("""
+            * **Age / Sex:** 38 years old, Male
+            * **Height:** 175 cm
+            * **Primary Goal:** Fat loss (abdominal / love handles)
+            * **Secondary Goal:** Lateral delt development
+            * **Milestone 1 Target:** ~70 kg / ~20–22% BF
+            """)
             
-            st.markdown("#### **Conditioning & Recovery**")
-            st.markdown("- **Conditioning:** Tue/Thu jog/walk (2m jog / 1m walk)[cite: 1]\n- **Recent Sleep:** 9h 40m (Score: 71)[cite: 1]")
+            st.markdown("### 💤 Recovery & Conditioning")
+            st.markdown("""
+            * **Conditioning:** Tue/Thu jog/walk (2m jog / 1m walk)
+            * **Recent Sleep:** 9h 40m (Score: 71)
+            """)
         
         with col_u2:
-            st.markdown("#### **Training & Equipment**")
-            st.markdown("- **Structure:** A/B/C Full-Body Rotation[cite: 1]\n- **Intensity:** ~2–3 RIR target[cite: 1]\n- **Key Adaptations:** 45° Leg Press & Smith-Machine RDL used to bypass grip/holding bottlenecks[cite: 1].")
+            st.markdown("### 🏋️ Training & Equipment")
+            st.markdown("""
+            * **Structure:** A/B/C Full-Body Rotation
+            * **Intensity Target:** ~2–3 RIR
+            * **Key Adaptations:** 45° Leg Press & Smith-Machine RDL used to bypass grip bottlenecks.
+            """)
             
             st.markdown("#### **Supplements**")
-            st.markdown("- Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes[cite: 1].")
+            st.markdown("- Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes.")
 
     st.markdown("---")
 
     # Rotation & Date Status
     col_rot1, col_rot2 = st.columns(2)
     with col_rot1:
-        st.markdown(f"📅 **Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`")[cite: 1, 2]
+        st.markdown(f"📅 **Target Date Detected:** `{tomorrow_date.strftime('%A, %B %d, %Y')}`")
     with col_rot2:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
-        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} → **Scheduled Next:** Workout **{next_letter}**")[cite: 1]
+        st.markdown(f"🔄 **Last Completed:** Workout {st.session_state.last_completed_workout} $\rightarrow$ **Scheduled Next:** Workout **{next_letter}**")
         
-        # Manual Override Selector
+        # Manual Override Selector Explained:
+        # Allows you to manually force a specific workout letter if you ever train out of sequence.
         override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
         st.session_state.active_workout_letter = override_choice
 
     if st.button("Generate Today's Workout", type="primary"):
         with st.spinner(f"Analyzing recovery & prescribing Workout {st.session_state.active_workout_letter}..."):
-            body_data = st.session_state.extracted_scale_metrics or "Weight: 75.50 kg, BF: 27.1%"[cite: 1]
-            sleep_data = st.session_state.extracted_sleep_metrics or "Sleep: 9h 40m, Score: 71"[cite: 1]
+            body_data = st.session_state.extracted_scale_metrics or "Weight: 75.50 kg, BF: 27.1%"
+            sleep_data = st.session_state.extracted_sleep_metrics or "Sleep: 9h 40m, Score: 71"
             
-            # Clean triple-quoted multi-line string preventing any syntax errors
             prompt_text = f"""Act as my Workout Analyst. 
 Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). 
 Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. 
