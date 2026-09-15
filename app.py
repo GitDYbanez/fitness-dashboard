@@ -30,6 +30,8 @@ if 'workout_logs' not in st.session_state:
     st.session_state.workout_logs = []
 if 'workout_started' not in st.session_state:
     st.session_state.workout_started = False
+if 'warmup_completed' not in st.session_state:
+    st.session_state.warmup_completed = False
 if 'workout_start_time' not in st.session_state:
     st.session_state.workout_start_time = None
 if 'current_ex_index' not in st.session_state:
@@ -48,21 +50,17 @@ def parse_exercises_from_text(workout_text):
     exercises = []
     lines = workout_text.split('\n')
     for line in lines:
-        # Match numbered exercise lines (e.g., "1. 45° Leg Press — 3 sets...")
         match = re.match(r'^\s*(\d+)\.\s+(.*?)(?:\s+[—–-]\s+|\s+—\s+|\s+-\s+|\b\d+\s+sets?\b)', line, re.IGNORECASE)
         if match:
             ex_name = match.group(2).strip()
-            # Clean up trailing dashes if captured
             ex_name = re.sub(r'\s+[—–-]\s*$', '', ex_name).strip()
             
             if not ex_name or ex_name.lower().startswith('warm') or ex_name.lower().startswith('cooldown'):
                 continue
                 
-            # Extract sets
             set_match = re.search(r'(\d+)\s+sets?', line, re.IGNORECASE)
             sets = int(set_match.group(1)) if set_match else 3
             
-            # Extract reps
             rep_match = re.search(r'(\d+(?:[–-]\d+)?)\s+reps?', line, re.IGNORECASE)
             target_reps = rep_match.group(1) if rep_match else "10"
             
@@ -73,20 +71,6 @@ def parse_exercises_from_text(workout_text):
                 "target_rir": 3
             })
             
-    # Fallback secondary parser if primary format differs slightly
-    if not exercises:
-        for line in lines:
-            if re.match(r'^\s*\d+\.\s+', line):
-                parts = re.split(r'[—–-]', line)
-                ex_name = re.sub(r'^\s*\d+\.\s+', '', parts[0]).strip()
-                if ex_name and not ex_name.lower().startswith('warm'):
-                    exercises.append({
-                        "exercise": ex_name,
-                        "sets": 3,
-                        "target_reps": "10",
-                        "target_rir": 3
-                    })
-
     if not exercises:
         exercises = [{"exercise": "Working Exercise", "sets": 3, "target_reps": "10", "target_rir": 3}]
         
@@ -124,7 +108,7 @@ if scale_file is not None:
         with st.spinner("Extracting body composition..."):
             resp = generate_content("Extract scale metrics as key-value pairs.", scale_image)
             st.session_state.extracted_scale_metrics = resp
-            st.sidebar.success("Scale Data Logged!")
+            st.sidebar.success("Scale Data Logged for Sep 16!")
 
 sleep_file = st.sidebar.file_uploader("Upload Sleep Screenshot", type=["png", "jpg", "jpeg"], key="sleep_upload")
 if sleep_file is not None:
@@ -133,7 +117,7 @@ if sleep_file is not None:
         with st.spinner("Extracting sleep performance..."):
             resp = generate_content("Extract sleep metrics as bullet points.", sleep_image)
             st.session_state.extracted_sleep_metrics = resp
-            st.sidebar.success("Scale Data Logged!")
+            st.sidebar.success("Sleep Data Logged for Sep 16!")
 
 # Main Tabs Setup
 tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
@@ -142,7 +126,6 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
-    # Side-by-Side Clean Metrics Layout
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Current Weight", "75.50 kg")
     m2.metric("Target Weight", "70.0 kg", "-5.5 kg")
@@ -152,7 +135,6 @@ with tab1:
     
     st.markdown("---")
 
-    # Cleaned-Up Readable User State Panel
     with st.expander("👤 View Master Current User State & Baselines", expanded=False):
         col_u1, col_u2 = st.columns(2)
         with col_u1:
@@ -164,13 +146,11 @@ with tab1:
             * **Secondary Goal:** Lateral delt development
             * **Milestone 1 Target:** ~70 kg / ~20–22% BF
             """)
-            
             st.markdown("### 💤 Recovery & Conditioning")
             st.markdown("""
             * **Conditioning:** Tue/Thu jog/walk (2m jog / 1m walk)
             * **Recent Sleep:** 9h 40m (Score: 71)
             """)
-        
         with col_u2:
             st.markdown("### 🏋️ Training & Equipment")
             st.markdown("""
@@ -178,7 +158,6 @@ with tab1:
             * **Intensity Target:** ~2–3 RIR
             * **Key Adaptations:** 45° Leg Press & Smith-Machine RDL used to bypass grip bottlenecks.
             """)
-            
             st.markdown("### 💊 Supplements")
             st.markdown("""
             * Whey Protein, Creatine, Fish Oil, Magnesium Glycinate, Wheyl Hydra electrolytes.
@@ -186,7 +165,6 @@ with tab1:
 
     st.markdown("---")
 
-    # Rotation Status & Manual Override Control
     col_rot1, col_rot2 = st.columns(2)
     with col_rot1:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
@@ -196,26 +174,32 @@ with tab1:
         st.session_state.active_workout_letter = override_choice
 
     if st.button("Generate Today's Workout", type="primary"):
-        with st.spinner(f"Analyzing recovery & prescribing Workout {st.session_state.active_workout_letter}..."):
-            body_data = st.session_state.extracted_scale_metrics or "Weight: 75.50 kg, BF: 27.1%"
-            sleep_data = st.session_state.extracted_sleep_metrics or "Sleep: 9h 40m, Score: 71"
-            
-            prompt_text = f"""Act as my Workout Analyst. 
+        # MANDATORY DATE-LOCK MEASUREMENT GATE
+        if not st.session_state.extracted_scale_metrics or not st.session_state.extracted_sleep_metrics:
+            st.error(f"🚨 **Missing Required Measurements for {tomorrow_date.strftime('%B %d, %Y')}**: Please upload both your Smart Scale and Sleep Tracker screenshots via the sidebar before generating today's workout.")
+        else:
+            with st.spinner(f"Analyzing recovery & prescribing Workout {st.session_state.active_workout_letter}..."):
+                body_data = st.session_state.extracted_scale_metrics
+                sleep_data = st.session_state.extracted_sleep_metrics
+                
+                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles: evidence-based practice, critical evaluation, continuity, and defensible programming[cite: 1]. Do NOT change exercises randomly or without reason[cite: 1]. Maintain the established A/B/C full-body split structure[cite: 1].
 Target Date: {tomorrow_date.strftime('%Y-%m-%d')} ({tomorrow_date.strftime('%A')}). 
 Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. 
 Prescribing: Workout {st.session_state.active_workout_letter}. 
 Latest Scale Data: {body_data}. 
 Latest Sleep Data: {sleep_data}. 
-Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown."""
-            
-            response_text = generate_content(prompt_text)
-            if "🚨 GOOGLE API REJECTION" in response_text:
-                st.error(response_text)
-            else:
-                st.session_state.todays_workout = response_text
-                st.session_state.current_ex_index = 0
-                st.session_state.current_set_num = 1
-                st.success(f"Workout {st.session_state.active_workout_letter} Generated Successfully! Switch to the Live Assistant tab to execute.")
+Provide a complete, structured workout following established baselines, standard warm-up (5 min treadmill + World's Greatest Stretch), exact exercise names, sets, rep ranges, target 2–3 RIR, rest periods, and cooldown[cite: 1, 2]. Output the workout inside ONE monospaced code block[cite: 1]."""
+                
+                response_text = generate_content(prompt_text)
+                if "🚨 GOOGLE API REJECTION" in response_text:
+                    st.error(response_text)
+                else:
+                    st.session_state.todays_workout = response_text
+                    st.session_state.current_ex_index = 0
+                    st.session_state.current_set_num = 1
+                    st.session_state.workout_started = False
+                    st.session_state.warmup_completed = False
+                    st.success(f"Workout {st.session_state.active_workout_letter} Generated Successfully! Switch to the Live Assistant tab to execute.")
             
     if st.session_state.todays_workout:
         st.subheader("Prescribed Routine")
@@ -223,16 +207,16 @@ Provide a complete workout structure with Warm-up, Exercises, Sets, Reps, RIR, R
 
 # --- TAB 2: LIVE WORKOUT ASSISTANT ---
 with tab2:
-    st.header("Gym Execution & Dynamic Logging")
+    st.header("Gym Execution & Live Assistant")
     
     if not st.session_state.todays_workout:
         st.info("Please generate Today's Workout in the Workout Analyst tab first!")
     else:
-        # Workout Stopwatch / Timer
         col_timer1, col_timer2 = st.columns([1, 3])
         if not st.session_state.workout_started:
             if col_timer1.button("🚀 Start Workout"):
                 st.session_state.workout_started = True
+                st.session_state.warmup_completed = False
                 st.session_state.workout_start_time = time.time()
                 st.rerun()
         else:
@@ -244,52 +228,63 @@ with tab2:
                 st.session_state.last_completed_workout = st.session_state.active_workout_letter
 
         st.markdown("---")
-        
-        # Dynamically parse exercises directly from the Analyst's generated workout text
-        active_structure = parse_exercises_from_text(st.session_state.todays_workout)
-        
-        if st.session_state.current_ex_index < len(active_structure):
-            current_item = active_structure[st.session_state.current_ex_index]
-            ex_name = current_item["exercise"]
-            total_sets = current_item["sets"]
-            target_reps = current_item["target_reps"]
-            target_rir = current_item["target_rir"]
-            
-            st.markdown(f"### 🔥 Workout {st.session_state.active_workout_letter} | Current Exercise: **{ex_name}**")
-            st.info(f"**Set {st.session_state.current_set_num} of {total_sets}** | Target: {target_reps} reps @ RIR {target_rir}")
-            
-            with st.form("streamlined_logger"):
-                c1, c2, c3 = st.columns(3)
-                act_weight = c1.number_input("Weight Used (kg)", value=0.0, step=0.5)
-                act_reps = c2.number_input("Reps Completed", value=0, step=1)
-                act_rir = c3.number_input("RIR Left", value=target_rir, step=1)
-                act_notes = st.text_input("Execution Notes (optional)", placeholder="e.g., Good form, smooth lockout")
-                
-                submitted = st.form_submit_button("✅ Log Set & Next")
-                if submitted:
-                    st.session_state.workout_logs.append({
-                        "Workout": f"Workout {st.session_state.active_workout_letter}",
-                        "Exercise": ex_name,
-                        "Set": st.session_state.current_set_num,
-                        "Weight (kg)": act_weight,
-                        "Reps": act_reps,
-                        "RIR": act_rir,
-                        "Notes": act_notes
-                    })
-                    
-                    if st.session_state.current_set_num < total_sets:
-                        st.session_state.current_set_num += 1
-                    else:
-                        st.session_state.current_ex_index += 1
-                        st.session_state.current_set_num = 1
-                    st.rerun()
-        else:
-            st.success(f"🎉 All prescribed sets completed for Workout {st.session_state.active_workout_letter}!")
-            if st.button("Mark Workout as Completed & Advance Rotation"):
-                st.session_state.last_completed_workout = st.session_state.active_workout_letter
-                st.success(f"Rotation updated! Next session will advance past Workout {st.session_state.active_workout_letter}.")
 
-        # Display Live Session Log Table
+        if st.session_state.workout_started and not st.session_state.warmup_completed:
+            st.markdown("### 🔥 Warm-Up Protocol")
+            st.info("Complete the warm-up sequence before beginning your working sets. No logging required here.")
+            st.markdown("""
+            * **1.** 5 minutes easy/moderate treadmill walking[cite: 2]
+            * **2.** World's Greatest Stretch: 5 reps/side[cite: 2]
+            * **3.** Exercise-specific warm-up sets as needed[cite: 2]
+            """)
+            if st.button("✅ Warm-up Done — Start Main Exercises", type="primary"):
+                st.session_state.warmup_completed = True
+                st.rerun()
+
+        elif st.session_state.workout_started and st.session_state.warmup_completed:
+            active_structure = parse_exercises_from_text(st.session_state.todays_workout)
+            
+            if st.session_state.current_ex_index < len(active_structure):
+                current_item = active_structure[st.session_state.current_ex_index]
+                ex_name = current_item["exercise"]
+                total_sets = current_item["sets"]
+                target_reps = current_item["target_reps"]
+                target_rir = current_item["target_rir"]
+                
+                st.markdown(f"### 🔥 Workout {st.session_state.active_workout_letter} | Current Exercise: **{ex_name}**")
+                st.info(f"**Set {st.session_state.current_set_num} of {total_sets}** | Target: {target_reps} reps @ RIR {target_rir}")
+                
+                with st.form("streamlined_logger"):
+                    c1, c2, c3 = st.columns(3)
+                    act_weight = c1.number_input("Weight Used (kg)", value=0.0, step=0.5)
+                    act_reps = c2.number_input("Reps Completed", value=0, step=1)
+                    act_rir = c3.number_input("RIR Left", value=target_rir, step=1)
+                    act_notes = st.text_input("Execution Notes (optional)", placeholder="e.g., Good form, smooth lockout")
+                    
+                    submitted = st.form_submit_button("✅ Log Set & Next")
+                    if submitted:
+                        st.session_state.workout_logs.append({
+                            "Workout": f"Workout {st.session_state.active_workout_letter}",
+                            "Exercise": ex_name,
+                            "Set": st.session_state.current_set_num,
+                            "Weight (kg)": act_weight,
+                            "Reps": act_reps,
+                            "RIR": act_rir,
+                            "Notes": act_notes
+                        })
+                        
+                        if st.session_state.current_set_num < total_sets:
+                            st.session_state.current_set_num += 1
+                        else:
+                            st.session_state.current_ex_index += 1
+                            st.session_state.current_set_num = 1
+                        st.rerun()
+            else:
+                st.success(f"🎉 All prescribed sets completed for Workout {st.session_state.active_workout_letter}!")
+                if st.button("Mark Workout as Completed & Advance Rotation"):
+                    st.session_state.last_completed_workout = st.session_state.active_workout_letter
+                    st.success(f"Rotation updated! Next session will advance past Workout {st.session_state.active_workout_letter}.")
+
         if st.session_state.workout_logs:
             st.subheader("📋 Session Progress Log")
             df_logs = pd.DataFrame(st.session_state.workout_logs)
