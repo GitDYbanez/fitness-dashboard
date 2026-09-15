@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
 from google import genai
-from google.genai import types
 from PIL import Image
 
 # 1. Page Config & API Setup
 st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
-# Initialize GenAI Client using modern google-genai SDK
+# Initialize modern GenAI Client
 api_key = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=api_key)
 MODEL_ID = 'gemini-1.5-flash'
@@ -79,21 +78,19 @@ with tab1:
             body_data = st.session_state.extracted_scale_metrics or "No new scale data."
             sleep_data = st.session_state.extracted_sleep_metrics or "No new sleep data."
             
-            prompt_text = f"""
-            Act as my Workout Analyst. 
-            Latest Scale Data: {body_data}
-            Latest Sleep Data: {sleep_data}
-            Generate Today's Workout following the A/B/C full-body split progression.
-            Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown.
-            Do not include conversational greetings or setup intros.
-            """
+            prompt_text = (
+                "Act as my Workout Analyst. "
+                f"Latest Scale Data: {body_data}. "
+                f"Latest Sleep Data: {sleep_data}. "
+                "Generate Today's Workout following the A/B/C full-body split progression. "
+                "Provide ONLY the raw Workout prescription with Warm-up, Exercises, Sets, Reps, RIR, Rest periods, and Cooldown. "
+                "Do not include conversational greetings or setup intros."
+            )
             
-            # EXACT FIX: Wrapped text string inside types.Content and types.Part.from_text
+            # Simple string list in contents parameter resolves ClientError
             response = client.models.generate_content(
                 model=MODEL_ID,
-                contents=types.Content(
-                    parts=[types.Part.from_text(text=prompt_text)]
-                )
+                contents=prompt_text
             )
             st.session_state.todays_workout = response.text
             st.success("Today's Workout Generated! Switch to the Live Assistant tab to execute.")
@@ -141,16 +138,14 @@ with tab2:
             st.table(df_logs)
             
             if st.button("Finish Workout & Generate Execution Report"):
-                report_text = f"""
-                Act as the Workout Assistant. Generate a clean Workout Execution Report based on these actual set logs:
-                {df_logs.to_string(index=False)}
-                Format as a clear summary code block with Prescribed vs. Actual performance and completion status.
-                """
+                report_text = (
+                    "Act as the Workout Assistant. Generate a clean Workout Execution Report based on these actual set logs: "
+                    f"{df_logs.to_string(index=False)}. "
+                    "Format as a clear summary code block with Prescribed vs. Actual performance and completion status."
+                )
                 report_response = client.models.generate_content(
                     model=MODEL_ID,
-                    contents=types.Content(
-                        parts=[types.Part.from_text(text=report_text)]
-                    )
+                    contents=report_text
                 )
                 st.markdown("### 🏆 Completed Workout Report")
                 st.code(report_response.text, language="text")
