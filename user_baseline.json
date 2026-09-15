@@ -1,0 +1,59 @@
+{
+  "profile": {
+    "age": 38,
+    "sex": "Male",
+    "height_cm": 175,
+    "primary_goal": "Fat loss (abdominal/love handles)",
+    "secondary_goal": "Lateral delt development",
+    "milestone_1": "~70 kg / ~20-22% BF by late Nov 2026"
+  },
+  "training_standards": {
+    "structure": "A/B/C Full-Body Rotation",
+    "target_rir": "2-3",
+    "warmup": "5 min easy/moderate treadmill + World's Greatest Stretch (5 reps/side)",
+    "cooldown": "5-10 min easy walking"
+  },
+  "equipment_adaptations": [
+    "Goblet Squat limited by grip; use 45° Leg Press for progression.",
+    "DB RDL limited by grip; use Smith-Machine RDL."
+  ],
+  "routines": {
+    "Workout_A": [
+      {"exercise": "Goblet Squat", "target": "30 kg (grip limited)", "reps": "10", "sets": 3},
+      {"exercise": "Incline Dumbbell Bench Press", "target": "12.5 kg/hand", "reps": "10", "sets": 3},
+      {"exercise": "Lat Pulldown", "target": "35 kg", "reps": "8-12", "sets": 3},
+      {"exercise": "Dumbbell Romanian Deadlift", "target": "17.5 kg/hand (grip limited)", "reps": "10", "sets": 3},
+      {"exercise": "Seated Leg Curl", "target": "40 kg", "reps": "10-12", "sets": 2},
+      {"exercise": "Dumbbell Lateral Raise", "target": "5 kg/hand", "reps": "13-15", "sets": 3},
+      {"exercise": "Reverse Crunch", "target": "Bodyweight", "reps": "12-15", "sets": 2},
+      {"exercise": "Dumbbell Curl", "target": "5 kg/hand", "reps": "12", "sets": 2},
+      {"exercise": "Cable Triceps Pressdown", "target": "25 kg", "reps": "10-12", "sets": 2},
+      {"exercise": "Single-Leg Calf Raise", "target": "BW + 5 kg", "reps": "12", "sets": 2}
+    ],
+    "Workout_B": [
+      {"exercise": "45° Leg Press", "target": "Establish Baseline", "reps": "10-12", "sets": 3},
+      {"exercise": "Flat Dumbbell Bench Press", "target": "15 kg/hand", "reps": "8-10", "sets": 3},
+      {"exercise": "Chest-Supported Row", "target": "Establish Baseline", "reps": "10-12", "sets": 3},
+      {"exercise": "Smith-Machine Romanian Deadlift", "target": "Establish Baseline", "reps": "10-12", "sets": 3},
+      {"exercise": "Leg Extension", "target": "Establish Baseline", "reps": "12-15", "sets": 2},
+      {"exercise": "Reverse Pec Deck / Rear-Delt Machine", "target": "Establish Baseline", "reps": "12-15", "sets": 3},
+      {"exercise": "Single-Arm Cable Lateral Raise", "target": "Establish Baseline", "reps": "12-15", "sets": 3},
+      {"exercise": "Cable Biceps Curl", "target": "Establish Baseline", "reps": "10-12", "sets": 2},
+      {"exercise": "Cable Triceps Pressdown", "target": "25 kg", "reps": "10-12", "sets": 2},
+      {"exercise": "Reverse Crunch", "target": "Bodyweight", "reps": "12-15", "sets": 2}
+    ],
+    "Workout_C": [
+      {"exercise": "Dumbbell Step-Up", "target": "Establish Baseline", "reps": "10-12/side", "sets": 3},
+      {"exercise": "Incline Dumbbell Bench Press", "target": "12.5 kg/hand", "reps": "10", "sets": 3},
+      {"exercise": "Lat Pulldown", "target": "35 kg", "reps": "8-12", "sets": 3},
+      {"exercise": "Dumbbell Hip Thrust", "target": "Establish Baseline", "reps": "10-12", "sets": 3},
+      {"exercise": "Seated Leg Curl", "target": "40 kg", "reps": "10-12", "sets": 2},
+      {"exercise": "Shoulder Press Machine", "target": "Establish Baseline", "reps": "10-12", "sets": 3},
+      {"exercise": "Direct Lateral-Delt Exercise", "target": "Establish Baseline", "reps": "12-15", "sets": 3},
+      {"exercise": "Reverse Crunch", "target": "Bodyweight", "reps": "12-15", "sets": 2},
+      {"exercise": "Dumbbell Curl", "target": "5 kg/hand", "reps": "12", "sets": 2},
+      {"exercise": "Cable Triceps Pressdown", "target": "25 kg", "reps": "10-12", "sets": 2},
+      {"exercise": "Single-Leg Calf Raise", "target": "BW + 5 kg", "reps": "12", "sets": 2}
+    ]
+  }
+}
