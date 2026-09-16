@@ -186,7 +186,7 @@ with tab1:
         if bf_match:
             display_bf = f"{bf_match.group(1)}%"
 
-    # 3. Inject dynamic variables into the UI metrics (ONLY ONE SET OF COLUMNS!)
+    # 3. Inject dynamic variables into the UI metrics
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Current Weight", display_weight)
     m2.metric("Target Weight", "70.0 kg")
@@ -210,9 +210,10 @@ with tab1:
             * **Milestone 1 Target:** {profile_data.get('milestone_1', '~70 kg / ~20-22% BF')}
             """)
             st.markdown("### 💤 Recovery & Conditioning")
-            st.markdown("""
+            st.markdown(f"""
             * **Conditioning:** Tue/Thu jog/walk (2m jog / 1m walk)
-            * **Recent Sleep:** 9h 40m (Score: 71)
+            * **Recent Sleep:** {profile_data.get('current_sleep', '9h 40m (Score: 71)')}
+            * **Last Logged Date:** {profile_data.get('last_measurement_date', 'Unknown')}
             """)
         with col_u2:
             st.markdown("### 🏋️ Training & Equipment")
@@ -237,12 +238,19 @@ with tab1:
         st.session_state.active_workout_letter = override_choice
 
     if st.button("Generate Today's Workout", type="primary"):
-        if not st.session_state.extracted_scale_metrics or not st.session_state.extracted_sleep_metrics:
-            st.error(f"🚨 **Missing Required Measurements for {tomorrow_date.strftime('%B %d, %Y')}**: Please upload your Scale and Sleep Tracker screenshots via the sidebar before generating today's workout.")
+        current_date_str = tomorrow_date.strftime('%Y-%m-%d')
+        last_record_date = profile_data.get("last_measurement_date", "")
+        
+        has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_sleep_metrics
+        has_valid_history = (last_record_date == current_date_str)
+        
+        if not has_new_uploads and not has_valid_history:
+            st.error(f"🚨 **Missing Required Measurements for {tomorrow_date.strftime('%B %d, %Y')}**: Please upload your Scale and Sleep Tracker screenshots via the sidebar, or ensure your JSON database is updated with today's date.")
         else:
             with st.spinner(f"Analyzing recovery & prescribing Workout {st.session_state.active_workout_letter}..."):
-                body_data = st.session_state.extracted_scale_metrics
-                sleep_data = st.session_state.extracted_sleep_metrics
+                # Use live session uploads if available; otherwise, pull directly from the JSON database.
+                body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
+                sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No recent sleep data logged.")
                 
                 # INJECTING THE JSON DATABASE DIRECTLY INTO THE PROMPT
                 prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles: evidence-based practice, critical evaluation, continuity, and defensible programming. Do NOT change exercises randomly or without reason. 
