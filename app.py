@@ -31,6 +31,7 @@ def load_baseline():
 
 master_baseline = load_baseline()
 baseline_json_string = json.dumps(master_baseline, indent=2)
+profile_data = master_baseline.get("profile", {})
 
 # Session State Initialization & Rotation Tracking
 if 'extracted_scale_metrics' not in st.session_state:
@@ -118,15 +119,19 @@ def parse_exercises_from_text(workout_text):
     return exercises
 
 # REST API Helper
-def generate_content(prompt, image=None):
+def generate_content(prompt, images=None):
     parts = [{"text": prompt}]
-    if image:
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        buffered = io.BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_str}})
+    if images:
+        if not isinstance(images, list):
+            images = [images]
+            
+        for img in images:
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            buffered = io.BytesIO()
+            img.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_str}})
     
     payload = {"contents": [{"parts": parts}]}
     response = requests.post(API_URL, headers={'Content-Type': 'application/json'}, json=payload)
@@ -142,11 +147,13 @@ def generate_content(prompt, image=None):
 # Sidebar Data Inputs
 st.sidebar.header("📸 Log Metrics via Screenshots")
 
-scale_file = st.sidebar.file_uploader("Upload Scale Screenshot(s)", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="scale_upload")
-if scale_file:
+scale_files = st.sidebar.file_uploader("Upload Scale Screenshot(s)", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="scale_upload")
+if scale_files:
     if st.sidebar.button("Process Scale Screenshot(s)"):
-        with st.spinner("Extracting & synthesizing body composition data..."):
-            st.session_state.extracted_scale_metrics = "Synthesized Scale Data Found"
+        with st.spinner(f"Extracting & synthesizing {len(scale_files)} body composition screenshot(s)..."):
+            images = [Image.open(f) for f in scale_files]
+            resp = generate_content("Extract all scale metrics as key-value pairs, synthesizing data across all provided images into one unified list. Do not repeat metrics.", images)
+            st.session_state.extracted_scale_metrics = resp
             st.sidebar.success("Scale Data Synthesized & Logged!")
 
 sleep_file = st.sidebar.file_uploader("Upload Sleep Screenshot", type=["png", "jpg", "jpeg"], key="sleep_upload")
@@ -165,10 +172,24 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
+    # Dynamic Metric Parsing from JSON Database
+    display_weight = profile_data.get("current_weight", "75.50 kg")
+    display_bf = profile_data.get("current_body_fat", "27.1%")
+    
+    # Override with live extracted data if newly uploaded during this session
+    if st.session_state.extracted_scale_metrics:
+        w_match = re.search(r'(?:Weight)[\s:]*(\d+(?:\.\d+)?)\s*(?:kg|lbs)?', st.session_state.extracted_scale_metrics, re.IGNORECASE)
+        bf_match = re.search(r'(?:Body\s*Fat|Fat|BF)[\s:]*(\d+(?:\.\d+)?)\s*%', st.session_state.extracted_scale_metrics, re.IGNORECASE)
+        
+        if w_match:
+            display_weight = f"{w_match.group(1)} kg"
+        if bf_match:
+            display_bf = f"{bf_match.group(1)}%"
+
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Current Weight", "75.50 kg")
-    m2.metric("Target Weight", "70.0 kg", "-5.5 kg")
-    m3.metric("Current Body Fat", "27.1%")
+    m1.metric("Current Weight", display_weight)
+    m2.metric("Target Weight", "70.0 kg")
+    m3.metric("Current Body Fat", display_bf)
     m4.metric("Target Body Fat", "15–18%")
     m5.metric("Milestone 1", "Late Nov 2026")
     
@@ -178,12 +199,14 @@ with tab1:
         col_u1, col_u2 = st.columns(2)
         with col_u1:
             st.markdown("### 📋 Profile & Goals")
-            st.markdown("""
-            * **Age / Sex:** 38 years old, Male
-            * **Height:** 175 cm
-            * **Primary Goal:** Fat loss (abdominal / love handles)
-            * **Secondary Goal:** Lateral delt development
-            * **Milestone 1 Target:** ~70 kg / ~20–22% BF
+            st.markdown(f"""
+            * **Age / Sex:** {profile_data.get('age', 38)} years old, {profile_data.get('sex', 'Male')}
+            * **Height:** {profile_data.get('height_cm', 175)} cm
+            * **Current Weight:** {display_weight}
+            * **Current Body Fat:** {display_bf}
+            * **Primary Goal:** {profile_data.get('primary_goal', 'Fat loss')}
+            * **Secondary Goal:** {profile_data.get('secondary_goal', 'Lateral delt development')}
+            * **Milestone 1 Target:** {profile_data.get('milestone_1', '~70 kg / ~20-22% BF')}
             """)
             st.markdown("### 💤 Recovery & Conditioning")
             st.markdown("""
@@ -220,7 +243,6 @@ with tab1:
                 body_data = st.session_state.extracted_scale_metrics
                 sleep_data = st.session_state.extracted_sleep_metrics
                 
-                # INJECTING THE JSON DATABASE DIRECTLY INTO THE PROMPT
                 prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles: evidence-based practice, critical evaluation, continuity, and defensible programming. Do NOT change exercises randomly or without reason. 
                 
 Here is my Master Baseline Database containing my exact established weights and routines. You MUST prescribe weights and exercises that match this database:
