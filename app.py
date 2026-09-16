@@ -172,11 +172,11 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
-    # Dynamic Metric Parsing from JSON Database
+    # 1. First, pull the absolute latest stored baseline from your JSON database
     display_weight = profile_data.get("current_weight", "75.50 kg")
     display_bf = profile_data.get("current_body_fat", "27.1%")
     
-    # Override with live extracted data if newly uploaded during this session
+    # 2. If new screenshots are uploaded during THIS session, dynamically override the display
     if st.session_state.extracted_scale_metrics:
         w_match = re.search(r'(?:Weight)[\s:]*(\d+(?:\.\d+)?)\s*(?:kg|lbs)?', st.session_state.extracted_scale_metrics, re.IGNORECASE)
         bf_match = re.search(r'(?:Body\s*Fat|Fat|BF)[\s:]*(\d+(?:\.\d+)?)\s*%', st.session_state.extracted_scale_metrics, re.IGNORECASE)
@@ -185,6 +185,15 @@ with tab1:
             display_weight = f"{w_match.group(1)} kg"
         if bf_match:
             display_bf = f"{bf_match.group(1)}%"
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    
+    # 3. Inject the dynamic variables into the UI metrics
+    m1.metric("Current Weight", display_weight)
+    m2.metric("Target Weight", "70.0 kg")
+    m3.metric("Current Body Fat", display_bf)
+    m4.metric("Target Body Fat", "15–18%")
+    m5.metric("Milestone 1", "Late Nov 2026")
 
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Current Weight", display_weight)
