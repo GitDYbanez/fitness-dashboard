@@ -388,8 +388,46 @@ with tab1:
         st.session_state.active_workout_letter = override_choice
         sync_active_session_to_sheets()
 
-    if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
+   if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
         current_date_str = today_date.strftime('%Y-%m-%d')
         last_record_date = str(profile_data.get("last_measurement_date", ""))
         
-        has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_
+        has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_sleep_metrics
+        has_valid_history = (last_record_date == current_date_str)
+        
+        if not has_new_uploads and not has_valid_history:
+            # Explicitly display the warning so you see why it didn't run
+            st.error(f"🚨 Cannot generate: Missing required measurements for {today_date.strftime('%B %d, %Y')}. Please upload both scale and sleep screenshots above.")
+        else:
+            with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
+                body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
+                sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No sleep logged.")
+                
+                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles. Do NOT change exercises randomly or without reason.
+
+Here is my Master Baseline Database:
+{json.dumps(db, indent=2)}
+
+Target Date: {today_date.strftime('%Y-%m-%d')} ({today_date.strftime('%A')}). 
+Last completed workout in rotation: Workout {st.session_state.last_completed_workout}. 
+Prescribing: Workout {st.session_state.active_workout_letter}. 
+Latest Scale Data: {body_data}. 
+Latest Sleep Data: {sleep_data}. 
+
+Provide a complete, structured workout following established baselines, standard warm-up (5 min treadmill + World's Greatest Stretch), exact exercise names, sets, rep ranges, target 2–3 RIR, rest periods, and standard cooldown (5–10 min easy walking). Output the workout inside ONE monospaced code block."""
+                
+                response_text = generate_content(prompt_text)
+                if "🚨" in response_text:
+                    st.error(response_text)
+                else:
+                    st.session_state.todays_workout = response_text
+                    st.session_state.current_ex_index = 0
+                    st.session_state.current_set_num = 1
+                    st.session_state.workout_started = False
+                    st.session_state.warmup_completed = False
+                    st.session_state.workout_completed = False
+                    st.session_state.final_report = ""
+                    st.session_state.analyst_feedback = ""
+                    st.session_state.workout_logs = []
+                    sync_active_session_to_sheets()
+                    st.success("Protocol Generated Successfully! Switch to the Live Session Tracker tab to begin.")
