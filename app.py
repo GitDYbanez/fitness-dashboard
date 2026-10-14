@@ -376,7 +376,7 @@ with tab1:
                     st.session_state.extracted_sleep_metrics = resp
                     st.success("Sleep Data Logged!")
 st.markdown("---")
-    st.markdown("### ⚡ Generation Engine")
+st.markdown("### ⚡ Generation Engine")
 
     col_rot1, col_rot2 = st.columns([2, 1])
     with col_rot1:
