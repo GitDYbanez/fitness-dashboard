@@ -414,22 +414,22 @@ Latest Sleep Data: {sleep_data}.
 
 Provide a complete, structured workout following established baselines, standard warm-up (5 min treadmill + World's Greatest Stretch), exact exercise names, sets, rep ranges, target 2–3 RIR, rest periods, and standard cooldown (5–10 min easy walking). Output the workout inside ONE monospaced code block."""
                 
-                response_text = generate_content(prompt_text)
-                if "🚨" in response_text:
-                    st.error(response_text)
-                else:
-                    st.session_state.todays_workout = response_text
-                    st.session_state.current_ex_index = 0
-                    st.session_state.current_set_num = 1
-                    st.session_state.workout_started = False
-                    st.session_state.warmup_completed = False
-                    st.session_state.workout_completed = False
-                    st.session_state.final_report = ""
-                    st.session_state.analyst_feedback = ""
-                    st.session_state.workout_logs = []
-                    sync_active_session_to_sheets()
-                    st.success("Protocol Generated Successfully! Switch to the Live Session Tracker tab to begin.")
+            response_text = generate_content(prompt_text)
+            if "🚨" in response_text:
+                st.error(response_text)
+            else:
+                st.session_state.todays_workout = response_text
+                st.session_state.current_ex_index = 0
+                st.session_state.current_set_num = 1
+                st.session_state.workout_started = False
+                st.session_state.warmup_completed = False
+                st.session_state.workout_completed = False
+                st.session_state.final_report = ""
+                st.session_state.analyst_feedback = ""
+                st.session_state.workout_logs = []
+                sync_active_session_to_sheets()
+                st.success("Protocol Generated Successfully! Switch to the Live Session Tracker tab to begin.")
             
-    if st.session_state.todays_workout:
-        st.subheader("📋 Prescribed Routine")
-        st.code(st.session_state.todays_workout, language="text")
+if st.session_state.todays_workout:
+    st.subheader("📋 Prescribed Routine")
+    st.code(st.session_state.todays_workout, language="text")
