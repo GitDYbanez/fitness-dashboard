@@ -378,7 +378,7 @@ with tab1:
 st.markdown("---")
 st.markdown("### ⚡ Generation Engine")
 
-    col_rot1, col_rot2 = st.columns([2, 1])
+col_rot1, col_rot2 = st.columns([2, 1])
     with col_rot1:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
         st.info(f"🔄 **Rotation Status:** Last Completed was **Workout {st.session_state.last_completed_workout}**. Scheduled next is **Workout {next_letter}**.")
