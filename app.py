@@ -379,29 +379,29 @@ st.markdown("---")
 st.markdown("### ⚡ Generation Engine")
 
 col_rot1, col_rot2 = st.columns([2, 1])
-    with col_rot1:
-        next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
-        st.info(f"🔄 **Rotation Status:** Last Completed was **Workout {st.session_state.last_completed_workout}**. Scheduled next is **Workout {next_letter}**.")
-    with col_rot2:
-        override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
-        st.session_state.active_workout_letter = override_choice
-        sync_active_session_to_sheets()
+with col_rot1:
+    next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
+    st.info(f"🔄 **Rotation Status:** Last Completed was **Workout {st.session_state.last_completed_workout}**. Scheduled next is **Workout {next_letter}**.")
+with col_rot2:
+    override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
+    st.session_state.active_workout_letter = override_choice
+    sync_active_session_to_sheets()
 
-    if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
-        current_date_str = today_date.strftime('%Y-%m-%d')
-        last_record_date = str(profile_data.get("last_measurement_date", ""))
+if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
+    current_date_str = today_date.strftime('%Y-%m-%d')
+    last_record_date = str(profile_data.get("last_measurement_date", ""))
         
-        has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_sleep_metrics
-        has_valid_history = (last_record_date == current_date_str)
+    has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_sleep_metrics
+    has_valid_history = (last_record_date == current_date_str)
         
-        if not has_new_uploads and not has_valid_history:
-            st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
-        else:
-            with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
-                body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
-                sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No sleep logged.")
+    if not has_new_uploads and not has_valid_history:
+        st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
+    else:
+        with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
+            body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
+            sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No sleep logged.")
                 
-                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles. Do NOT change exercises randomly or without reason.
+            prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles. Do NOT change exercises randomly or without reason.
 
 Here is my Master Baseline Database:
 {json.dumps(db, indent=2)}
