@@ -12,143 +12,48 @@ from PIL import Image
 import gspread
 from google.oauth2.service_account import Credentials
 
-# 1. Page Config & Boostcamp Custom UI CSS Injection
+# 1. Page Config & Custom CSS Interface
 st.set_page_config(page_title="Workout Analyst & Live Gym Assistant", layout="wide", initial_sidebar_state="collapsed")
 
+# Safe Dark Theme CSS Styling
 st.markdown("""
 <style>
-    /* Boostcamp Dark Mode Core Palette */
-    .stApp {
-        background-color: #0b0c10;
-        color: #e2e8f0;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* Main Header & Title */
-    h1 {
-        font-weight: 900 !important;
-        letter-spacing: -0.5px !important;
-        background: -webkit-linear-gradient(45deg, #38bdf8, #4ade80);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem !important;
-    }
-    h2, h3, h4 {
-        color: #f1f5f9 !important;
-        font-weight: 700 !important;
-    }
-
-    /* Metric Cards / Boostcamp Stat Cards */
+    /* Metric Cards Styling */
     [data-testid="stMetric"] {
         background: #141622;
-        border-radius: 16px;
-        padding: 18px 22px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         border: 1px solid #232738;
-        text-align: left;
-        transition: all 0.25s ease-in-out;
-    }
-    [data-testid="stMetric"]:hover {
-        border-color: #38bdf8;
-        transform: translateY(-2px);
+        text-align: center;
     }
     [data-testid="stMetricValue"] {
-        font-size: 2.1rem !important;
+        font-size: 2rem !important;
         font-weight: 800 !important;
         color: #38bdf8 !important;
-        font-feature-settings: "tnum";
     }
     [data-testid="stMetricLabel"] {
-        font-size: 0.82rem !important;
+        font-size: 0.9rem !important;
         color: #94a3b8 !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
         text-transform: uppercase;
-        letter-spacing: 1.2px;
     }
-
-    /* Boostcamp Pill / Tag Badges */
-    .badge-pill {
-        display: inline-block;
-        background-color: #1e2235;
-        color: #38bdf8;
-        border: 1px solid #2e354f;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        margin-right: 6px;
+    h1, h2, h3 {
+        color: #f1f5f9 !important;
+        font-family: 'Inter', sans-serif;
     }
-    .badge-pill-green {
-        background-color: #142e23;
-        color: #4ade80;
-        border: 1px solid #1f523b;
-    }
-    .badge-pill-orange {
-        background-color: #2e1d14;
-        color: #fb923c;
-        border: 1px solid #52311f;
-    }
-
-    /* Primary Boostcamp Buttons */
-    .stButton > button {
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        padding: 12px 24px !important;
-        transition: all 0.2s ease-in-out !important;
-        border: none !important;
-    }
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
-    }
-    .stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
-    }
-
-    /* Tab Bar Custom Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: #11131c;
-        padding: 8px;
-        border-radius: 14px;
-        border: 1px solid #1e2233;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 48px;
-        border-radius: 10px;
-        color: #94a3b8;
-        font-weight: 700;
-        padding: 0 20px;
-        background-color: transparent;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1e2338 !important;
-        color: #38bdf8 !important;
-        border: 1px solid #38bdf8 !important;
-    }
-
-    /* Smooth Progress Bar */
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #38bdf8 0%, #4ade80 100%);
         border-radius: 8px;
     }
-
-    /* Clean Container Cards */
-    .boostcamp-card {
-        background: #141622;
-        border: 1px solid #232738;
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 16px;
+    .streamlit-expanderHeader {
+        background-color: #141622;
+        border-radius: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("⚡ Boostcamp Fitness Analyst")
-st.caption("AI-Driven Personal Training Engine & Real-Time Gym Assistant")
+st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 # API Setup
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
@@ -343,12 +248,81 @@ def generate_content(prompt, images=None):
     except requests.exceptions.RequestException as e:
         return f"🚨 API NETWORK TIMEOUT ERROR: {str(e)}"
 
-# Main App Navigation Tabs
+# Main Navigation Tabs
 tab1, tab2 = st.tabs(["📊 Executive Dashboard", "🏋️ Live Session Tracker"])
 
 # --- TAB 1: EXECUTIVE DASHBOARD ---
 with tab1:
+    st.header("Executive Summary & Trajectory")
+    
     raw_w = str(profile_data.get("current_weight", "74.0 kg")).strip()
     display_weight = raw_w if "kg" in raw_w.lower() else f"{raw_w} kg"
     raw_bf = str(profile_data.get("current_body_fat", "26.40%")).strip()
     display_bf = raw_bf if "%" in raw_bf else f"{raw_bf}%"
+    
+    # Metric Cards
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Current Weight", display_weight)
+    m2.metric("Target Weight", "70.0 kg")
+    m3.metric("Current Body Fat", display_bf)
+    m4.metric("Target Body Fat", "15–18%")
+    
+    # Milestone Progress Tracker
+    st.markdown("---")
+    st.markdown("### 🎯 Milestone 1 Progress Tracker (Target: Nov 2026)")
+    
+    try:
+        start_w = 75.50
+        curr_w = float(re.search(r'(\d+(?:\.\d+)?)', display_weight).group(1))
+        target_w = 70.0
+        w_prog = max(0.0, min(1.0, (start_w - curr_w) / (start_w - target_w)))
+    except:
+        w_prog = 0.0
+
+    try:
+        start_bf = 27.1
+        curr_bf = float(re.search(r'(\d+(?:\.\d+)?)', display_bf).group(1))
+        target_bf = 18.0
+        bf_prog = max(0.0, min(1.0, (start_bf - curr_bf) / (start_bf - target_bf)))
+    except:
+        bf_prog = 0.0
+
+    p_col1, p_col2 = st.columns(2)
+    with p_col1:
+        st.markdown(f"**Weight Trajectory (70.0 kg):** `{int(w_prog*100)}% to Goal`")
+        st.progress(w_prog)
+    with p_col2:
+        st.markdown(f"**Body Fat Trajectory (18.0%):** `{int(bf_prog*100)}% to Goal`")
+        st.progress(bf_prog)
+
+    # Time-Series Chart Integration
+    history_data = db.get("measurement_history", [])
+    if history_data:
+        df_hist = pd.DataFrame(history_data)
+        if "weight_kg" in df_hist.columns and "date" in df_hist.columns:
+            st.markdown("---")
+            fig = px.line(df_hist, x="date", y="weight_kg", markers=True, template="plotly_dark")
+            fig.update_layout(title="Weight Loss Trajectory (kg)", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=0, t=40, b=0))
+            st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("👤 Master Profile & Equipment Overview", expanded=False):
+        col_u1, col_u2 = st.columns(2)
+        with col_u1:
+            st.markdown("#### 📋 Profile & Goals")
+            st.markdown(f"""
+            - **Age / Sex:** {profile_data.get('age', 35)} years old, {profile_data.get('sex', 'Male')}
+            - **Height:** {profile_data.get('height_cm', 165)} cm
+            - **Current Weight:** {display_weight}
+            - **Current Body Fat:** {display_bf}
+            - **Primary Goal:** {profile_data.get('primary_goal', 'Fat loss')}
+            """)
+            st.markdown("#### 💤 Recovery")
+            st.markdown(f"""
+            - **Recent Sleep:** {profile_data.get('current_sleep', 'No recent data.')}
+            - **Last Measurement:** {profile_data.get('last_measurement_date', 'Unknown')}
+            """)
+        with col_u2:
+            st.markdown("#### 🏋️ Training Parameters")
+            st.markdown("""
+            - **Structure:** A/B/C Full-Body Rotation
+            -
