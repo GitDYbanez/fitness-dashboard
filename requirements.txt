@@ -1,5 +1,7 @@
 streamlit
-requests
-plotly
 pandas
-Pillow
+requests
+pillow
+plotly
+gspread
+google-auth
