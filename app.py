@@ -376,14 +376,14 @@ with tab1:
                     st.session_state.extracted_sleep_metrics = resp
                     st.success("Sleep Data Logged!")
 st.markdown("---")
-st.markdown("### ⚡ Generation Engine")
+    st.markdown("### ⚡ Generation Engine")
 
     col_rot1, col_rot2 = st.columns([2, 1])
     with col_rot1:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
         st.info(f"🔄 **Rotation Status:** Last Completed was **Workout {st.session_state.last_completed_workout}**. Scheduled next is **Workout {next_letter}**.")
     with col_rot2:
-        override_choice = st.selectbox("Force Override Routine:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
+        override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
         st.session_state.active_workout_letter = override_choice
         sync_active_session_to_sheets()
 
