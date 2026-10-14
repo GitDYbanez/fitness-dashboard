@@ -375,8 +375,7 @@ with tab1:
                     resp = generate_content("Extract sleep duration, score, and quality as bullet points.", sleep_image)
                     st.session_state.extracted_sleep_metrics = resp
                     st.success("Sleep Data Logged!")
-
-    st.markdown("---")
+st.markdown("---")
     st.markdown("### ⚡ Generation Engine")
 
     col_rot1, col_rot2 = st.columns([2, 1])
@@ -388,7 +387,7 @@ with tab1:
         st.session_state.active_workout_letter = override_choice
         sync_active_session_to_sheets()
 
-   if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
         current_date_str = today_date.strftime('%Y-%m-%d')
         last_record_date = str(profile_data.get("last_measurement_date", ""))
         
@@ -396,8 +395,7 @@ with tab1:
         has_valid_history = (last_record_date == current_date_str)
         
         if not has_new_uploads and not has_valid_history:
-            # Explicitly display the warning so you see why it didn't run
-            st.error(f"🚨 Cannot generate: Missing required measurements for {today_date.strftime('%B %d, %Y')}. Please upload both scale and sleep screenshots above.")
+            st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
         else:
             with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
                 body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
@@ -431,3 +429,7 @@ Provide a complete, structured workout following established baselines, standard
                     st.session_state.workout_logs = []
                     sync_active_session_to_sheets()
                     st.success("Protocol Generated Successfully! Switch to the Live Session Tracker tab to begin.")
+            
+    if st.session_state.todays_workout:
+        st.subheader("📋 Prescribed Routine")
+        st.code(st.session_state.todays_workout, language="text")
