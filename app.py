@@ -12,10 +12,11 @@ from PIL import Image
 import gspread
 from google.oauth2.service_account import Credentials
 
-# 1. Page Config & Setup
+# 1. Page Config & API Setup
 st.set_page_config(page_title="Fitness Dashboard & Assistant", layout="wide")
 st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
+# Direct REST API Setup (Bypasses all SDK version conflicts)
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 MODEL_ID = "gemini-3.6-flash"
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent?key={API_KEY}"
@@ -40,30 +41,30 @@ def get_gsheets_client():
 client = get_gsheets_client()
 spreadsheet_name = "Workout_Analyst_Database"
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=10)
 def load_database_from_sheets():
     try:
         sh = client.open(spreadsheet_name)
         
-        # Load Profile Worksheet (Pulls the latest row & normalizes keys)
+        # Load Profile Worksheet
         profile_ws = sh.worksheet("Profile")
-        profile_records = profile_ws.get_all_records()
+        # Filter out completely empty rows and pull the last valid row
+        profile_records = [row for row in profile_ws.get_all_records() if any(row.values())]
         raw_profile = profile_records[-1] if profile_records else {}
         
-        # Key Normalization (Converts all header keys to lowercase string)
+        # Key Normalization: Strip spaces and lowercase all keys to ensure perfect matching
         profile_data = {str(k).strip().lower(): v for k, v in raw_profile.items()}
         
         # Load Program Worksheet
         program_ws = sh.worksheet("Program")
-        program_records = program_ws.get_all_records()
+        program_records = [row for row in program_ws.get_all_records() if any(row.values())]
         raw_program = program_records[-1] if program_records else {"last_completed_workout": "A", "active_workout_letter": "B"}
         program_data = {str(k).strip().lower(): v for k, v in raw_program.items()}
         
         # Load Active Session Worksheet
         session_ws = sh.worksheet("Active_Session")
-        session_records = session_ws.get_all_records()
-        raw_session = session_records[-1] if session_records else {}
-        session_data = {str(k).strip().lower(): v for k, v in raw_session.items()}
+        session_records = [row for row in session_ws.get_all_records() if any(row.values())]
+        session_data = session_records[-1] if session_records else {}
         
         if "live_logs" in session_data and isinstance(session_data["live_logs"], str):
             try:
@@ -112,7 +113,7 @@ def sync_active_session_to_sheets():
         session_ws.append_row(list(session_payload.keys()))
         session_ws.append_row(list(session_payload.values()))
     except Exception:
-        pass
+        pass # Continue gracefully if temporary network glitch occurs
 
 db = load_database_from_sheets()
 profile_data = db.get("profile", {})
@@ -506,6 +507,7 @@ with tab2:
             df_logs = pd.DataFrame(st.session_state.workout_logs)
             
             if not st.session_state.final_report:
+                # Step 1: Assistant compiles Execution Report
                 with st.spinner("🤖 Assistant compiling execution report..."):
                     report_prompt = f"""Act as the Workout Assistant. Generate a Workout Execution Report based on these actual set logs:
 {df_logs.to_string(index=False)}
@@ -515,6 +517,7 @@ Format inside ONE clean monospaced code block."""
                     
                     st.session_state.final_report = generate_content(report_prompt)
                 
+                # Step 2: Analyst evaluates performance & decides progressions
                 with st.spinner("🧠 Analyst reviewing execution & progression triggers..."):
                     analysis_prompt = f"""Act as the Workout Analyst. Review this Workout Execution Report:
 {st.session_state.final_report}
