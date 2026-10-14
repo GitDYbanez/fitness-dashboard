@@ -15,10 +15,10 @@ from google.oauth2.service_account import Credentials
 # 1. Page Config & Custom CSS Interface
 st.set_page_config(page_title="Workout Analyst & Live Gym Assistant", layout="wide", initial_sidebar_state="collapsed")
 
-# Visual Styling Inspired by Modern Fitness App Cards
+# Custom Dark CSS Styling
 st.markdown("""
 <style>
-    /* Executive Metric Cards */
+    /* Metric Cards Styling */
     [data-testid="stMetric"] {
         background: #141622;
         border-radius: 14px;
@@ -38,33 +38,40 @@ st.markdown("""
         font-weight: 600 !important;
         text-transform: uppercase;
     }
-    h1, h2, h3 {
+    h1, h2, h3, h4 {
         color: #f1f5f9 !important;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, sans-serif;
     }
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #38bdf8 0%, #4ade80 100%);
         border-radius: 8px;
     }
 
-    /* Custom Workout Card Banners */
+    /* Custom Analytics & Workout Cards */
+    .stat-card {
+        background: #141622;
+        border: 1px solid #232738;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
     .workout-card-header-a {
         background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
-        padding: 18px 24px;
+        padding: 16px 20px;
         border-radius: 12px 12px 0px 0px;
         color: white;
         font-weight: bold;
     }
     .workout-card-header-b {
         background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);
-        padding: 18px 24px;
+        padding: 16px 20px;
         border-radius: 12px 12px 0px 0px;
         color: white;
         font-weight: bold;
     }
     .workout-card-header-c {
         background: linear-gradient(135deg, #6366f1 0%, #3730a3 100%);
-        padding: 18px 24px;
+        padding: 16px 20px;
         border-radius: 12px 12px 0px 0px;
         color: white;
         font-weight: bold;
@@ -76,6 +83,24 @@ st.markdown("""
         font-size: 0.8rem;
         font-weight: 600;
         margin-right: 8px;
+    }
+
+    /* Custom Emerald Styling for Generate Protocol Button */
+    div.stButton > button[key="gen_protocol_btn"] {
+        background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid #10b981 !important;
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+        padding: 10px 20px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    div.stButton > button[key="gen_protocol_btn"]:hover {
+        background: linear-gradient(135deg, #059669 0%, #065f46 100%) !important;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+        transform: translateY(-2px) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -179,19 +204,19 @@ db = load_database_from_sheets()
 profile_data = db.get("profile", {})
 active_session_db = db.get("active_session", {})
 
-# Master Default Routines & Baseline Results
+# Master Default Routines & Baselines
 DEFAULT_ROUTINES = {
     "A": [
-        {"Exercise": "Goblet Squat", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "30 kg (Grip limited)"},
+        {"Exercise": "45° Leg Press", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "Working Baseline Setup"},
         {"Exercise": "Incline DB Bench Press", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "12.5 kg / hand"},
         {"Exercise": "Lat Pulldown", "Target": "3 sets × 8–12 reps @ RIR 2", "Latest Baseline": "35 kg"},
-        {"Exercise": "Dumbbell Romanian Deadlift", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "17.5 kg / hand"},
+        {"Exercise": "Smith-Machine RDL", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "Working Baseline Setup"},
         {"Exercise": "Seated Leg Curl", "Target": "2 sets × 10–12 reps @ RIR 3", "Latest Baseline": "40 kg"},
         {"Exercise": "Dumbbell Lateral Raise", "Target": "3 sets × 13–15 reps @ RIR 3", "Latest Baseline": "5 kg / hand"},
         {"Exercise": "Reverse Crunch", "Target": "2 sets × 12–15 reps @ RIR 3", "Latest Baseline": "Bodyweight"},
         {"Exercise": "Dumbbell Curl", "Target": "2 sets × 12 reps @ RIR 3", "Latest Baseline": "5 kg / hand"},
         {"Exercise": "Cable Triceps Pressdown", "Target": "2 sets × 10–12 reps @ RIR 3", "Latest Baseline": "25 kg"},
-        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 3", "Latest Baseline": "BW + 5 kg"}
+        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 3", "Latest Baseline": "BW"}
     ],
     "B": [
         {"Exercise": "45° Leg Press", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
@@ -216,7 +241,7 @@ DEFAULT_ROUTINES = {
         {"Exercise": "Reverse Crunch", "Target": "2 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Bodyweight"},
         {"Exercise": "Dumbbell Curl", "Target": "2 sets × 12 reps @ RIR 2–3", "Latest Baseline": "5 kg / hand"},
         {"Exercise": "Cable Triceps Pressdown", "Target": "2 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "25 kg"},
-        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 2–3", "Latest Baseline": "BW + 5 kg"}
+        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 2–3", "Latest Baseline": "BW"}
     ]
 }
 
@@ -328,14 +353,14 @@ with tab1:
     raw_bf = str(profile_data.get("current_body_fat", "26.4%")).strip()
     display_bf = raw_bf if "%" in raw_bf else f"{raw_bf}%"
     
-    # Metric Cards Header
+    # 1. Top KPI Metric Dials
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Current Weight", display_weight)
     m2.metric("Target Weight", "70.0 kg")
     m3.metric("Current Body Fat", display_bf)
     m4.metric("Target Body Fat", "15–18%")
     
-    # Milestone Progress Tracker
+    # 2. Milestone Progress Bars
     st.markdown("---")
     st.markdown("### 🎯 Milestone 1 Trajectory (Target: Nov 2026)")
     
@@ -357,57 +382,88 @@ with tab1:
 
     p_col1, p_col2 = st.columns(2)
     with p_col1:
-        st.markdown(f"**Weight Progress (70.0 kg):** `{int(w_prog*100)}% to Goal`")
+        st.markdown(f"**Weight Progress (70.0 kg Goal):** `{int(w_prog*100)}% Complete`")
         st.progress(w_prog)
     with p_col2:
-        st.markdown(f"**Body Fat Progress (18.0%):** `{int(bf_prog*100)}% to Goal`")
+        st.markdown(f"**Body Fat Progress (18.0% Goal):** `{int(bf_prog*100)}% Complete`")
         st.progress(bf_prog)
 
-    # WORKOUT PLAN CARDS SECTION
+    # 3. STATISTICS & ANALYTICS CHARTS SECTION
+    st.markdown("---")
+    st.markdown("### 📈 Body Composition Statistics & Trends")
+    
+    col_chart, col_matrix = st.columns([2, 1])
+    
+    with col_chart:
+        history_data = db.get("measurement_history", [])
+        if history_data:
+            df_hist = pd.DataFrame(history_data)
+            if "weight_kg" in df_hist.columns and "date" in df_hist.columns:
+                fig = px.line(df_hist, x="date", y="weight_kg", markers=True, template="plotly_dark")
+                fig.update_traces(line_color="#38bdf8", line_width=3, marker_size=8, marker_color="#4ade80")
+                fig.update_layout(title="Body Weight Trajectory (kg)", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=0, t=30, b=0))
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("📊 Additional history data points needed to expand plot.")
+        else:
+            st.info("📊 Upload smart scale screenshots to populate your trend chart.")
+
+    with col_matrix:
+        st.markdown("""
+        <div class="stat-card">
+            <h4>📊 Smart Scale Breakdown</h4>
+            <p>• <b>Muscle Mass:</b> 52.20 kg</p>
+            <p>• <b>Skeletal Muscle:</b> 28.40 kg</p>
+            <p>• <b>Visceral Fat:</b> Level 12.0</p>
+            <p>• <b>Subcutaneous Fat:</b> 22.9%</p>
+            <p>• <b>Body Water:</b> 50.1%</p>
+            <p>• <b>BMR:</b> 1,552 kcal</p>
+            <p>• <b>Bone Mass:</b> 2.70 kg</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 4. WORKOUT PLAN CARDS SECTION
     st.markdown("---")
     st.markdown("### 🏋️‍♂️ Workout Plan & Routine Baselines")
 
-    # Card Workout A
+    # Workout A Card
     st.markdown("""
     <div class="workout-card-header-a">
         <span class="card-badge">ROTATION A</span>
-        <span style="font-size: 1.2rem;">Full Body Workout A</span>
+        <span style="font-size: 1.15rem;">Full Body Workout A</span>
         <span style="float: right;"><span class="card-badge">10 Exercises</span> <span class="card-badge">~45-60 min</span></span>
     </div>
     """, unsafe_allow_html=True)
     with st.expander("View Workout A Exercises & Latest Baselines", expanded=False):
-        df_a = pd.DataFrame(DEFAULT_ROUTINES["A"])
-        st.table(df_a)
+        st.table(pd.DataFrame(DEFAULT_ROUTINES["A"]))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Card Workout B
+    # Workout B Card
     st.markdown("""
     <div class="workout-card-header-b">
         <span class="card-badge">ROTATION B</span>
-        <span style="font-size: 1.2rem;">Full Body Workout B</span>
+        <span style="font-size: 1.15rem;">Full Body Workout B</span>
         <span style="float: right;"><span class="card-badge">10 Exercises</span> <span class="card-badge">~45-60 min</span></span>
     </div>
     """, unsafe_allow_html=True)
     with st.expander("View Workout B Exercises & Latest Baselines", expanded=False):
-        df_b = pd.DataFrame(DEFAULT_ROUTINES["B"])
-        st.table(df_b)
+        st.table(pd.DataFrame(DEFAULT_ROUTINES["B"]))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Card Workout C
+    # Workout C Card
     st.markdown("""
     <div class="workout-card-header-c">
         <span class="card-badge">ROTATION C</span>
-        <span style="font-size: 1.2rem;">Full Body Workout C</span>
+        <span style="font-size: 1.15rem;">Full Body Workout C</span>
         <span style="float: right;"><span class="card-badge">11 Exercises</span> <span class="card-badge">~50-60 min</span></span>
     </div>
     """, unsafe_allow_html=True)
     with st.expander("View Workout C Exercises & Latest Baselines", expanded=False):
-        df_c = pd.DataFrame(DEFAULT_ROUTINES["C"])
-        st.table(df_c)
+        st.table(pd.DataFrame(DEFAULT_ROUTINES["C"]))
 
-    # Log Metrics & Screenshot Upload Section
+    # 5. Daily Recovery Uploads
     st.markdown("---")
     st.markdown("### 📸 Log Daily Metrics (Smart Scale & Sleep)")
     
@@ -443,9 +499,9 @@ with tab1:
                     st.session_state.extracted_sleep_metrics = resp
                     st.success("Sleep Data Logged!")
 
-    # Protocol Generation Engine
+    # 6. Generation Engine
     st.markdown("---")
-    st.markdown("### ⚡ Protocol Generation Engine")
+    st.markdown("### ⚡ Generation Engine")
 
     col_rot1, col_rot2 = st.columns([2, 1])
     with col_rot1:
@@ -456,7 +512,12 @@ with tab1:
         st.session_state.active_workout_letter = override_choice
         sync_active_session_to_sheets()
 
-    if st.button("🚀 Generate Today's Protocol for Assistant", type="primary", use_container_width=True):
+    # Compact & Custom Styled Emerald Generate Button
+    col_btn1, _ = st.columns([1, 1])
+    with col_btn1:
+        generate_clicked = st.button("🚀 Generate Today's Protocol for Assistant", key="gen_protocol_btn", use_container_width=True)
+
+    if generate_clicked:
         current_date_str = today_date.strftime('%Y-%m-%d')
         last_record_date = str(profile_data.get("last_measurement_date", ""))
         
@@ -464,7 +525,7 @@ with tab1:
         has_valid_history = (last_record_date == current_date_str)
         
         if not has_new_uploads and not has_valid_history:
-            st.error(f"🚨 **Missing Measurements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
+            st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
         else:
             with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
                 body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
