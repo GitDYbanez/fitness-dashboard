@@ -40,25 +40,31 @@ def get_gsheets_client():
 client = get_gsheets_client()
 spreadsheet_name = "Workout_Analyst_Database"
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def load_database_from_sheets():
     try:
         sh = client.open(spreadsheet_name)
         
-        # Load Profile Worksheet (Pulls the latest row)
+        # Load Profile Worksheet (Pulls the latest row & normalizes keys)
         profile_ws = sh.worksheet("Profile")
         profile_records = profile_ws.get_all_records()
-        profile_data = profile_records[-1] if profile_records else {}
+        raw_profile = profile_records[-1] if profile_records else {}
         
-        # Load Program Worksheet (Pulls the latest row)
+        # Key Normalization (Converts all header keys to lowercase string)
+        profile_data = {str(k).strip().lower(): v for k, v in raw_profile.items()}
+        
+        # Load Program Worksheet
         program_ws = sh.worksheet("Program")
         program_records = program_ws.get_all_records()
-        program_data = program_records[-1] if program_records else {"last_completed_workout": "A", "active_workout_letter": "B"}
+        raw_program = program_records[-1] if program_records else {"last_completed_workout": "A", "active_workout_letter": "B"}
+        program_data = {str(k).strip().lower(): v for k, v in raw_program.items()}
         
         # Load Active Session Worksheet
         session_ws = sh.worksheet("Active_Session")
         session_records = session_ws.get_all_records()
-        session_data = session_records[-1] if session_records else {}
+        raw_session = session_records[-1] if session_records else {}
+        session_data = {str(k).strip().lower(): v for k, v in raw_session.items()}
+        
         if "live_logs" in session_data and isinstance(session_data["live_logs"], str):
             try:
                 session_data["live_logs"] = json.loads(session_data["live_logs"])
@@ -82,6 +88,7 @@ def load_database_from_sheets():
             "active_session": {},
             "measurement_history": []
         }
+
 def sync_active_session_to_sheets():
     try:
         sh = client.open(spreadsheet_name)
@@ -105,7 +112,7 @@ def sync_active_session_to_sheets():
         session_ws.append_row(list(session_payload.keys()))
         session_ws.append_row(list(session_payload.values()))
     except Exception:
-        pass # Continue gracefully if temporary network glitch occurs
+        pass
 
 db = load_database_from_sheets()
 profile_data = db.get("profile", {})
@@ -162,10 +169,10 @@ if 'session_metrics' not in st.session_state:
     st.session_state.session_metrics = {}
 
 if 'last_completed_workout' not in st.session_state:
-    st.session_state.last_completed_workout = db.get("training_program", {}).get("last_completed_workout", "A")
+    st.session_state.last_completed_workout = str(db.get("training_program", {}).get("last_completed_workout", "A")).upper()
 
 if 'active_workout_letter' not in st.session_state:
-    st.session_state.active_workout_letter = db.get("training_program", {}).get("active_workout_letter", "B")
+    st.session_state.active_workout_letter = str(db.get("training_program", {}).get("active_workout_letter", "B")).upper()
 
 # 4. Dynamic Exercise Parser
 def parse_exercises_from_text(workout_text):
@@ -251,7 +258,6 @@ if scale_files:
             resp = generate_content("Extract all scale metrics as key-value pairs. Synthesize across all images into one key-value list.", images)
             st.session_state.extracted_scale_metrics = resp
             
-            # Sync to Google Sheets
             try:
                 sh = client.open(spreadsheet_name)
                 history_ws = sh.worksheet("Measurement_History")
@@ -283,13 +289,17 @@ tab1, tab2 = st.tabs(["📊 Workout Analyst", "🏋️ Live Workout Assistant"])
 with tab1:
     st.header("Program Continuity & Planning")
     
-    display_weight = profile_data.get("current_weight", "75.20 kg")
-    display_bf = profile_data.get("current_body_fat", "26.9%")
+    # Safe Value Formatting from Google Sheets Profile Record
+    raw_w = str(profile_data.get("current_weight", "75.20 kg")).strip()
+    display_weight = raw_w if "kg" in raw_w.lower() else f"{raw_w} kg"
+    
+    raw_bf = str(profile_data.get("current_body_fat", "26.9%")).strip()
+    display_bf = raw_bf if "%" in raw_bf else f"{raw_bf}%"
     
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Current Weight", str(display_weight))
+    m1.metric("Current Weight", display_weight)
     m2.metric("Target Weight", "70.0 kg")
-    m3.metric("Current Body Fat", str(display_bf))
+    m3.metric("Current Body Fat", display_bf)
     m4.metric("Target Body Fat", "15–18%")
     m5.metric("Milestone 1", "Late Nov 2026")
     
@@ -496,7 +506,6 @@ with tab2:
             df_logs = pd.DataFrame(st.session_state.workout_logs)
             
             if not st.session_state.final_report:
-                # Step 1: Assistant compiles Execution Report
                 with st.spinner("🤖 Assistant compiling execution report..."):
                     report_prompt = f"""Act as the Workout Assistant. Generate a Workout Execution Report based on these actual set logs:
 {df_logs.to_string(index=False)}
@@ -506,7 +515,6 @@ Format inside ONE clean monospaced code block."""
                     
                     st.session_state.final_report = generate_content(report_prompt)
                 
-                # Step 2: Analyst evaluates performance & decides progressions
                 with st.spinner("🧠 Analyst reviewing execution & progression triggers..."):
                     analysis_prompt = f"""Act as the Workout Analyst. Review this Workout Execution Report:
 {st.session_state.final_report}
