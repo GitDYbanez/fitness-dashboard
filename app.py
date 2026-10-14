@@ -40,24 +40,25 @@ def get_gsheets_client():
 client = get_gsheets_client()
 spreadsheet_name = "Workout_Analyst_Database"
 
+@st.cache_data(ttl=10)
 def load_database_from_sheets():
     try:
         sh = client.open(spreadsheet_name)
         
-        # Load Profile Worksheet
+        # Load Profile Worksheet (Pulls the latest row)
         profile_ws = sh.worksheet("Profile")
         profile_records = profile_ws.get_all_records()
-        profile_data = profile_records[0] if profile_records else {}
+        profile_data = profile_records[-1] if profile_records else {}
         
-        # Load Program Worksheet
+        # Load Program Worksheet (Pulls the latest row)
         program_ws = sh.worksheet("Program")
         program_records = program_ws.get_all_records()
-        program_data = program_records[0] if program_records else {"last_completed_workout": "A", "active_workout_letter": "B"}
+        program_data = program_records[-1] if program_records else {"last_completed_workout": "A", "active_workout_letter": "B"}
         
         # Load Active Session Worksheet
         session_ws = sh.worksheet("Active_Session")
         session_records = session_ws.get_all_records()
-        session_data = session_records[0] if session_records else {}
+        session_data = session_records[-1] if session_records else {}
         if "live_logs" in session_data and isinstance(session_data["live_logs"], str):
             try:
                 session_data["live_logs"] = json.loads(session_data["live_logs"])
@@ -75,28 +76,12 @@ def load_database_from_sheets():
             "measurement_history": history_data
         }
     except Exception as e:
-        # Fallback default baseline if sheet structure is fresh or uninitialized
         return {
-            "profile": {
-                "age": 38,
-                "sex": "Male",
-                "height_cm": 175,
-                "current_weight": "75.20 kg",
-                "current_body_fat": "26.9%",
-                "current_sleep": "4 hr 58 min, Score: 50",
-                "last_measurement_date": today_date.strftime('%Y-%m-%d'),
-                "primary_goal": "Fat loss (abdominal / love handles)",
-                "secondary_goal": "Lateral delt development",
-                "milestone_1": "~70 kg / ~20–22% BF by late Nov 2026"
-            },
+            "profile": {},
             "training_program": {"last_completed_workout": "A", "active_workout_letter": "B"},
             "active_session": {},
-            "measurement_history": [
-                {"date": "2026-09-15", "weight_kg": 75.50, "bf_percent": 27.1},
-                {"date": "2026-09-16", "weight_kg": 75.20, "bf_percent": 26.9}
-            ]
+            "measurement_history": []
         }
-
 def sync_active_session_to_sheets():
     try:
         sh = client.open(spreadsheet_name)
