@@ -15,25 +15,25 @@ from google.oauth2.service_account import Credentials
 # 1. Page Config & Custom CSS Interface
 st.set_page_config(page_title="Workout Analyst & Live Gym Assistant", layout="wide", initial_sidebar_state="collapsed")
 
-# Safe Dark Theme CSS Styling
+# Visual Styling Inspired by Modern Fitness App Cards
 st.markdown("""
 <style>
-    /* Metric Cards Styling */
+    /* Executive Metric Cards */
     [data-testid="stMetric"] {
         background: #141622;
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 16px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         border: 1px solid #232738;
         text-align: center;
     }
     [data-testid="stMetricValue"] {
-        font-size: 2rem !important;
+        font-size: 1.8rem !important;
         font-weight: 800 !important;
         color: #38bdf8 !important;
     }
     [data-testid="stMetricLabel"] {
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
         color: #94a3b8 !important;
         font-weight: 600 !important;
         text-transform: uppercase;
@@ -46,9 +46,36 @@ st.markdown("""
         background: linear-gradient(90deg, #38bdf8 0%, #4ade80 100%);
         border-radius: 8px;
     }
-    .streamlit-expanderHeader {
-        background-color: #141622;
-        border-radius: 8px;
+
+    /* Custom Workout Card Banners */
+    .workout-card-header-a {
+        background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
+        padding: 18px 24px;
+        border-radius: 12px 12px 0px 0px;
+        color: white;
+        font-weight: bold;
+    }
+    .workout-card-header-b {
+        background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);
+        padding: 18px 24px;
+        border-radius: 12px 12px 0px 0px;
+        color: white;
+        font-weight: bold;
+    }
+    .workout-card-header-c {
+        background: linear-gradient(135deg, #6366f1 0%, #3730a3 100%);
+        padding: 18px 24px;
+        border-radius: 12px 12px 0px 0px;
+        color: white;
+        font-weight: bold;
+    }
+    .card-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -151,6 +178,47 @@ def sync_active_session_to_sheets():
 db = load_database_from_sheets()
 profile_data = db.get("profile", {})
 active_session_db = db.get("active_session", {})
+
+# Master Default Routines & Baseline Results
+DEFAULT_ROUTINES = {
+    "A": [
+        {"Exercise": "Goblet Squat", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "30 kg (Grip limited)"},
+        {"Exercise": "Incline DB Bench Press", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "12.5 kg / hand"},
+        {"Exercise": "Lat Pulldown", "Target": "3 sets × 8–12 reps @ RIR 2", "Latest Baseline": "35 kg"},
+        {"Exercise": "Dumbbell Romanian Deadlift", "Target": "3 sets × 10 reps @ RIR 3", "Latest Baseline": "17.5 kg / hand"},
+        {"Exercise": "Seated Leg Curl", "Target": "2 sets × 10–12 reps @ RIR 3", "Latest Baseline": "40 kg"},
+        {"Exercise": "Dumbbell Lateral Raise", "Target": "3 sets × 13–15 reps @ RIR 3", "Latest Baseline": "5 kg / hand"},
+        {"Exercise": "Reverse Crunch", "Target": "2 sets × 12–15 reps @ RIR 3", "Latest Baseline": "Bodyweight"},
+        {"Exercise": "Dumbbell Curl", "Target": "2 sets × 12 reps @ RIR 3", "Latest Baseline": "5 kg / hand"},
+        {"Exercise": "Cable Triceps Pressdown", "Target": "2 sets × 10–12 reps @ RIR 3", "Latest Baseline": "25 kg"},
+        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 3", "Latest Baseline": "BW + 5 kg"}
+    ],
+    "B": [
+        {"Exercise": "45° Leg Press", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Flat DB Bench Press", "Target": "3 sets × 8–10 reps @ RIR 2–3", "Latest Baseline": "15 kg / hand"},
+        {"Exercise": "Chest-Supported Row", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Smith-Machine RDL", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Leg Extension", "Target": "2 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Reverse Pec Deck", "Target": "3 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Single-Arm Cable Lateral Raise", "Target": "3 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Cable Biceps Curl", "Target": "2 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Cable Triceps Pressdown", "Target": "2 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "25 kg"},
+        {"Exercise": "Reverse Crunch", "Target": "2 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Bodyweight"}
+    ],
+    "C": [
+        {"Exercise": "Dumbbell Step-Up", "Target": "3 sets × 10–12 reps/side @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Incline DB Bench Press", "Target": "3 sets × 10 reps @ RIR 2–3", "Latest Baseline": "12.5 kg / hand"},
+        {"Exercise": "Lat Pulldown", "Target": "3 sets × 8–12 reps @ RIR 2–3", "Latest Baseline": "35 kg"},
+        {"Exercise": "Dumbbell Hip Thrust", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Seated Leg Curl", "Target": "2 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "40 kg"},
+        {"Exercise": "Shoulder Press Machine", "Target": "3 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Direct Lateral-Delt Exercise", "Target": "3 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Working Baseline Setup"},
+        {"Exercise": "Reverse Crunch", "Target": "2 sets × 12–15 reps @ RIR 2–3", "Latest Baseline": "Bodyweight"},
+        {"Exercise": "Dumbbell Curl", "Target": "2 sets × 12 reps @ RIR 2–3", "Latest Baseline": "5 kg / hand"},
+        {"Exercise": "Cable Triceps Pressdown", "Target": "2 sets × 10–12 reps @ RIR 2–3", "Latest Baseline": "25 kg"},
+        {"Exercise": "Single-Leg Calf Raise", "Target": "2 sets × 12 reps @ RIR 2–3", "Latest Baseline": "BW + 5 kg"}
+    ]
+}
 
 # Session State Hydration
 if 'extracted_scale_metrics' not in st.session_state:
@@ -255,12 +323,12 @@ tab1, tab2 = st.tabs(["📊 Executive Dashboard", "🏋️ Live Session Tracker"
 with tab1:
     st.header("Executive Summary & Trajectory")
     
-    raw_w = str(profile_data.get("current_weight", "74.0 kg")).strip()
+    raw_w = str(profile_data.get("current_weight", "75.5 kg")).strip()
     display_weight = raw_w if "kg" in raw_w.lower() else f"{raw_w} kg"
-    raw_bf = str(profile_data.get("current_body_fat", "26.40%")).strip()
+    raw_bf = str(profile_data.get("current_body_fat", "26.4%")).strip()
     display_bf = raw_bf if "%" in raw_bf else f"{raw_bf}%"
     
-    # Metric Cards
+    # Metric Cards Header
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Current Weight", display_weight)
     m2.metric("Target Weight", "70.0 kg")
@@ -269,7 +337,7 @@ with tab1:
     
     # Milestone Progress Tracker
     st.markdown("---")
-    st.markdown("### 🎯 Milestone 1 Progress Tracker (Target: Nov 2026)")
+    st.markdown("### 🎯 Milestone 1 Trajectory (Target: Nov 2026)")
     
     try:
         start_w = 75.50
@@ -289,46 +357,57 @@ with tab1:
 
     p_col1, p_col2 = st.columns(2)
     with p_col1:
-        st.markdown(f"**Weight Trajectory (70.0 kg):** `{int(w_prog*100)}% to Goal`")
+        st.markdown(f"**Weight Progress (70.0 kg):** `{int(w_prog*100)}% to Goal`")
         st.progress(w_prog)
     with p_col2:
-        st.markdown(f"**Body Fat Trajectory (18.0%):** `{int(bf_prog*100)}% to Goal`")
+        st.markdown(f"**Body Fat Progress (18.0%):** `{int(bf_prog*100)}% to Goal`")
         st.progress(bf_prog)
 
-    # Time-Series Chart Integration
-    history_data = db.get("measurement_history", [])
-    if history_data:
-        df_hist = pd.DataFrame(history_data)
-        if "weight_kg" in df_hist.columns and "date" in df_hist.columns:
-            st.markdown("---")
-            fig = px.line(df_hist, x="date", y="weight_kg", markers=True, template="plotly_dark")
-            fig.update_layout(title="Weight Loss Trajectory (kg)", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=0, r=0, t=40, b=0))
-            st.plotly_chart(fig, use_container_width=True)
+    # WORKOUT PLAN CARDS SECTION
+    st.markdown("---")
+    st.markdown("### 🏋️‍♂️ Workout Plan & Routine Baselines")
 
-    with st.expander("👤 Master Profile & Equipment Overview", expanded=False):
-        col_u1, col_u2 = st.columns(2)
-        with col_u1:
-            st.markdown("#### 📋 Profile & Goals")
-            st.markdown(f"""
-            - **Age / Sex:** {profile_data.get('age', 35)} years old, {profile_data.get('sex', 'Male')}
-            - **Height:** {profile_data.get('height_cm', 165)} cm
-            - **Current Weight:** {display_weight}
-            - **Current Body Fat:** {display_bf}
-            - **Primary Goal:** {profile_data.get('primary_goal', 'Fat loss')}
-            """)
-            st.markdown("#### 💤 Recovery")
-            st.markdown(f"""
-            - **Recent Sleep:** {profile_data.get('current_sleep', 'No recent data.')}
-            - **Last Measurement:** {profile_data.get('last_measurement_date', 'Unknown')}
-            """)
-        with col_u2:
-            st.markdown("#### 🏋️ Training Parameters")
-            st.markdown("""
-            - **Structure:** A/B/C Full-Body Rotation
-            - **Intensity Target:** ~2–3 RIR
-            - **Key Adaptations:** 45° Leg Press & Smith-Machine RDL
-            """)
+    # Card Workout A
+    st.markdown("""
+    <div class="workout-card-header-a">
+        <span class="card-badge">ROTATION A</span>
+        <span style="font-size: 1.2rem;">Full Body Workout A</span>
+        <span style="float: right;"><span class="card-badge">10 Exercises</span> <span class="card-badge">~45-60 min</span></span>
+    </div>
+    """, unsafe_allow_html=True)
+    with st.expander("View Workout A Exercises & Latest Baselines", expanded=False):
+        df_a = pd.DataFrame(DEFAULT_ROUTINES["A"])
+        st.table(df_a)
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Card Workout B
+    st.markdown("""
+    <div class="workout-card-header-b">
+        <span class="card-badge">ROTATION B</span>
+        <span style="font-size: 1.2rem;">Full Body Workout B</span>
+        <span style="float: right;"><span class="card-badge">10 Exercises</span> <span class="card-badge">~45-60 min</span></span>
+    </div>
+    """, unsafe_allow_html=True)
+    with st.expander("View Workout B Exercises & Latest Baselines", expanded=False):
+        df_b = pd.DataFrame(DEFAULT_ROUTINES["B"])
+        st.table(df_b)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Card Workout C
+    st.markdown("""
+    <div class="workout-card-header-c">
+        <span class="card-badge">ROTATION C</span>
+        <span style="font-size: 1.2rem;">Full Body Workout C</span>
+        <span style="float: right;"><span class="card-badge">11 Exercises</span> <span class="card-badge">~50-60 min</span></span>
+    </div>
+    """, unsafe_allow_html=True)
+    with st.expander("View Workout C Exercises & Latest Baselines", expanded=False):
+        df_c = pd.DataFrame(DEFAULT_ROUTINES["C"])
+        st.table(df_c)
+
+    # Log Metrics & Screenshot Upload Section
     st.markdown("---")
     st.markdown("### 📸 Log Daily Metrics (Smart Scale & Sleep)")
     
@@ -364,19 +443,20 @@ with tab1:
                     st.session_state.extracted_sleep_metrics = resp
                     st.success("Sleep Data Logged!")
 
+    # Protocol Generation Engine
     st.markdown("---")
-    st.markdown("### ⚡ Generation Engine")
+    st.markdown("### ⚡ Protocol Generation Engine")
 
     col_rot1, col_rot2 = st.columns([2, 1])
     with col_rot1:
         next_letter = {"A": "B", "B": "C", "C": "A"}[st.session_state.last_completed_workout]
-        st.info(f"🔄 **Rotation Status:** Last Completed was **Workout {st.session_state.last_completed_workout}**. Scheduled next is **Workout {next_letter}**.")
+        st.info(f"🔄 **Rotation Status:** Last Completed: **Workout {st.session_state.last_completed_workout}**. Scheduled Next: **Workout {next_letter}**.")
     with col_rot2:
-        override_choice = st.selectbox("Override Workout Letter if Needed:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
+        override_choice = st.selectbox("Override Active Workout:", ["A", "B", "C"], index=["A", "B", "C"].index(next_letter))
         st.session_state.active_workout_letter = override_choice
         sync_active_session_to_sheets()
 
-    if st.button("🚀 Generate Today's Protocol", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Today's Protocol for Assistant", type="primary", use_container_width=True):
         current_date_str = today_date.strftime('%Y-%m-%d')
         last_record_date = str(profile_data.get("last_measurement_date", ""))
         
@@ -384,7 +464,7 @@ with tab1:
         has_valid_history = (last_record_date == current_date_str)
         
         if not has_new_uploads and not has_valid_history:
-            st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
+            st.error(f"🚨 **Missing Measurements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
         else:
             with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
                 body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
@@ -417,12 +497,8 @@ Provide a complete, structured workout following established baselines, standard
                     st.session_state.analyst_feedback = ""
                     st.session_state.workout_logs = []
                     sync_active_session_to_sheets()
-                    st.success("Protocol Generated Successfully! Switch to the Live Session Tracker tab to begin.")
-            
-    if st.session_state.todays_workout:
-        st.markdown("---")
-        st.subheader("📋 Prescribed Routine")
-        st.code(st.session_state.todays_workout, language="text")
+                    st.toast(f"✅ Workout {st.session_state.active_workout_letter} fed directly to Live Session Tracker!", icon="🚀")
+                    st.success(f"Today's Workout ({st.session_state.active_workout_letter}) generated and sent directly to the Live Session Tracker tab!")
 
 # --- TAB 2: LIVE SESSION TRACKER ---
 with tab2:
@@ -546,14 +622,13 @@ Format inside ONE clean monospaced code block."""
 {st.session_state.final_report}
 
 Perform a critical evaluation based on your core guidelines:
-1. Evaluate progression opportunities (e.g., if target 2–3 RIR was maintained, technique was good, and upper rep range was reached across all sets).
+1. Evaluate progression opportunities.
 2. Explicitly declare required weight progressions or load holds for the next iteration of this workout.
-3. IMPORTANT: If ANY working weights progressed, you MUST output the completely updated, full master baseline list for Workout {st.session_state.active_workout_letter} inside <NEW_BASELINE> tags. If no weights changed, do not output the tags."""
+3. IMPORTANT: If ANY working weights progressed, you MUST output the completely updated, full master baseline list for Workout {st.session_state.active_workout_letter} inside <NEW_BASELINE> tags."""
                     
                     feedback_response = generate_content(analysis_prompt)
                     st.session_state.analyst_feedback = feedback_response
                     
-                    # --- AUTO-UPDATE GOOGLE SHEETS BASELINE ---
                     new_baseline_match = re.search(r'<NEW_BASELINE>(.*?)</NEW_BASELINE>', feedback_response, re.DOTALL)
                     if new_baseline_match:
                         new_baseline_text = new_baseline_match.group(1).strip()
@@ -565,7 +640,6 @@ Perform a critical evaluation based on your core guidelines:
                             st.toast("✅ Master Database Auto-Updated with New Progression Weights!")
                         except Exception as e:
                             st.error(f"🚨 Failed to auto-sync progression to Sheets: {e}")
-                    # ------------------------------------------
                 
                 sync_active_session_to_sheets()
                 st.rerun()
