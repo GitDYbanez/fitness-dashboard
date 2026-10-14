@@ -321,8 +321,8 @@ with tab1:
             - **Recent Sleep:** {profile_data.get('current_sleep', 'No recent data.')}
             - **Last Measurement:** {profile_data.get('last_measurement_date', 'Unknown')}
             """)
-        with col_u2:
-            st.markdown("#### 🏋️ Training Parameters")
-            st.markdown("""
-            - **Structure:** A/B/C Full-Body Rotation
-            -
+    with col_u2:
+        st.markdown("#### 🏋️ Training Parameters")
+        st.markdown("""
+        - **Structure:** A/B/C Full-Body Rotation
+        -
