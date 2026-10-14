@@ -433,3 +433,157 @@ Provide a complete, structured workout following established baselines, standard
 if st.session_state.todays_workout:
     st.subheader("📋 Prescribed Routine")
     st.code(st.session_state.todays_workout, language="text")
+# --- TAB 2: LIVE WORKOUT ASSISTANT ---
+with tab2:
+    st.header("Gym Execution & Live Logging")
+    
+    if not st.session_state.todays_workout:
+        st.info("⚠️ Generate a workout protocol from the Executive Dashboard first.")
+    else:
+        col_timer1, col_timer2 = st.columns([1, 3])
+        if not st.session_state.workout_started:
+            if col_timer1.button("▶️ Start Session Stopwatch"):
+                st.session_state.workout_started = True
+                st.session_state.warmup_completed = False
+                st.session_state.workout_completed = False
+                st.session_state.workout_start_time = time.time()
+                sync_active_session_to_sheets()
+                st.rerun()
+        else:
+            if not st.session_state.workout_completed:
+                elapsed_seconds = int(time.time() - (st.session_state.workout_start_time or time.time()))
+                mins, secs = divmod(elapsed_seconds, 60)
+                col_timer1.markdown(f"### ⏱️ `{mins:02d}:{secs:02d}`")
+            else:
+                col_timer1.markdown(f"### 🛑 Final Time: `{st.session_state.session_metrics.get('duration', '00:00')}`")
+
+        st.markdown("---")
+
+        if st.session_state.workout_started and not st.session_state.warmup_completed:
+            st.markdown("### 🔥 Standard Warm-Up")
+            st.markdown("""
+            1. **5 minutes** easy/moderate treadmill walking
+            2. **World's Greatest Stretch:** 5 reps/side
+            3. **Acclimation:** Exercise-specific warm-up sets as needed
+            """)
+            if st.button("✅ Warm-up Complete", type="primary"):
+                st.session_state.warmup_completed = True
+                sync_active_session_to_sheets()
+                st.rerun()
+
+        elif st.session_state.workout_started and st.session_state.warmup_completed and not st.session_state.workout_completed:
+            active_structure = parse_exercises_from_text(st.session_state.todays_workout)
+            
+            if st.session_state.current_ex_index < len(active_structure):
+                current_item = active_structure[st.session_state.current_ex_index]
+                ex_name = current_item["exercise"]
+                total_sets = current_item["sets"]
+                target_reps = current_item["target_reps"]
+                target_rir = current_item["target_rir"]
+                
+                st.markdown(f"### 🟢 {ex_name}")
+                st.caption(f"Tracking Set {st.session_state.current_set_num} of {total_sets}  |  Target: {target_reps} reps @ RIR {target_rir}")
+                
+                with st.form("streamlined_logger"):
+                    c1, c2, c3 = st.columns(3)
+                    act_weight = c1.number_input("Load (kg)", value=0.0, step=0.5)
+                    act_reps = c2.number_input("Reps", value=0, step=1)
+                    act_rir = c3.number_input("RIR", value=target_rir, step=1)
+                    act_notes = st.text_input("Form / Pain Notes (optional)")
+                    
+                    if st.form_submit_button("✅ Log Set"):
+                        st.session_state.workout_logs.append({
+                            "Workout": f"Workout {st.session_state.active_workout_letter}",
+                            "Exercise": ex_name,
+                            "Set": st.session_state.current_set_num,
+                            "Weight (kg)": act_weight,
+                            "Reps": act_reps,
+                            "RIR": act_rir,
+                            "Notes": act_notes
+                        })
+                        if st.session_state.current_set_num < total_sets:
+                            st.session_state.current_set_num += 1
+                        else:
+                            st.session_state.current_ex_index += 1
+                            st.session_state.current_set_num = 1
+                        
+                        sync_active_session_to_sheets()
+                        st.rerun()
+            else:
+                st.markdown("### ❄️ Cooldown & Debrief")
+                st.success("All prescribed sets complete! Complete 5–10 minutes easy walking.")
+                
+                with st.form("session_metrics_form"):
+                    st.markdown("#### 📝 Session Debrief")
+                    sc1, sc2, sc3 = st.columns(3)
+                    pre_energy = sc1.slider("Pre-Session Energy", 1, 10, 5)
+                    post_energy = sc2.slider("Post-Session Energy", 1, 10, 5)
+                    difficulty = sc3.slider("Perceived Difficulty", 1, 10, 5)
+                    workout_notes = st.text_area("Final Notes", placeholder="Any joint pain or standout performance?")
+                    
+                    if st.form_submit_button("✅ Submit Debrief & End Session"):
+                        elapsed = int(time.time() - (st.session_state.workout_start_time or time.time()))
+                        m, s = divmod(elapsed, 60)
+                        
+                        st.session_state.session_metrics = {
+                            "duration": f"{m:02d}:{s:02d}",
+                            "pre_energy": pre_energy,
+                            "post_energy": post_energy,
+                            "difficulty": difficulty,
+                            "notes": workout_notes
+                        }
+                        st.session_state.last_completed_workout = st.session_state.active_workout_letter
+                        st.session_state.workout_completed = True
+                        sync_active_session_to_sheets()
+                        st.rerun()
+
+        if st.session_state.workout_completed:
+            df_logs = pd.DataFrame(st.session_state.workout_logs)
+            
+            if not st.session_state.final_report:
+                with st.spinner("🤖 Compiling execution matrix..."):
+                    report_prompt = f"""Act as the Workout Assistant. Generate a Workout Execution Report based on these actual set logs:
+{df_logs.to_string(index=False)}
+Overall Session Metrics: Pre-Energy: {st.session_state.session_metrics.get('pre_energy', 5)}/10 | Post-Energy: {st.session_state.session_metrics.get('post_energy', 5)}/10 | Difficulty: {st.session_state.session_metrics.get('difficulty', 5)}/10 | Duration: {st.session_state.session_metrics.get('duration', '00:00')} mins
+Notes: {st.session_state.session_metrics.get('notes', '')}
+Format inside ONE clean monospaced code block."""
+                    
+                    st.session_state.final_report = generate_content(report_prompt)
+                
+                with st.spinner("🧠 Analyst is calculating progression triggers..."):
+                    analysis_prompt = f"""Act as the Workout Analyst. Review this Workout Execution Report:
+{st.session_state.final_report}
+
+Perform a critical evaluation based on your core guidelines:
+1. Evaluate progression opportunities (e.g., if target 2–3 RIR was maintained, technique was good, and upper rep range was reached across all sets).
+2. Explicitly declare required weight progressions or load holds for the next iteration of this workout.
+3. IMPORTANT: If ANY working weights progressed, you MUST output the completely updated, full master baseline list for Workout {st.session_state.active_workout_letter} inside <NEW_BASELINE> tags. If no weights changed, do not output the tags."""
+                    
+                    feedback_response = generate_content(analysis_prompt)
+                    st.session_state.analyst_feedback = feedback_response
+                    
+                    # --- AUTO-UPDATE GOOGLE SHEETS BASELINE ---
+                    new_baseline_match = re.search(r'<NEW_BASELINE>(.*?)</NEW_BASELINE>', feedback_response, re.DOTALL)
+                    if new_baseline_match:
+                        new_baseline_text = new_baseline_match.group(1).strip()
+                        try:
+                            sh = client.open(spreadsheet_name)
+                            program_ws = sh.worksheet("Program")
+                            # Column C (3) = Workout A, Column D (4) = Workout B, Column E (5) = Workout C
+                            col_index = {"A": 3, "B": 4, "C": 5}.get(st.session_state.active_workout_letter, 3)
+                            program_ws.update_cell(2, col_index, new_baseline_text)
+                            st.toast("✅ Master Database Auto-Updated with New Progression Weights!")
+                        except Exception as e:
+                            st.error(f"🚨 Failed to auto-sync progression to Sheets: {e}")
+                    # ------------------------------------------
+                
+                sync_active_session_to_sheets()
+                st.rerun()
+
+            else:
+                st.markdown("### 🏆 Final Execution Report")
+                st.code(st.session_state.final_report, language="text")
+                
+                st.markdown("---")
+                st.markdown("### 🧠 Analyst Progression Decisions")
+                st.markdown(st.session_state.analyst_feedback)
