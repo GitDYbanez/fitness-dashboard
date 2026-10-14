@@ -48,11 +48,8 @@ def load_database_from_sheets():
         
         # Load Profile Worksheet
         profile_ws = sh.worksheet("Profile")
-        # Filter out completely empty rows and pull the last valid row
         profile_records = [row for row in profile_ws.get_all_records() if any(row.values())]
         raw_profile = profile_records[-1] if profile_records else {}
-        
-        # Key Normalization: Strip spaces and lowercase all keys to ensure perfect matching
         profile_data = {str(k).strip().lower(): v for k, v in raw_profile.items()}
         
         # Load Program Worksheet
@@ -83,6 +80,8 @@ def load_database_from_sheets():
             "measurement_history": history_data
         }
     except Exception as e:
+        # THIS WILL PRINT THE EXACT CRASH REASON TO YOUR DASHBOARD
+        st.error(f"🚨 Google Sheets Sync Error: {repr(e)}")
         return {
             "profile": {},
             "training_program": {"last_completed_workout": "A", "active_workout_letter": "B"},
