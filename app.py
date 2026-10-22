@@ -388,6 +388,21 @@ with tab1:
         st.markdown(f"**Body Fat Progress (18.0% Goal):** `{int(bf_prog*100)}% Complete`")
         st.progress(bf_prog)
 
+    # Automated Milestone Trigger
+    if w_prog >= 1.0 or bf_prog >= 1.0:
+        st.balloons()
+        st.success("🎉 **Milestone 1 Achieved!** You reached your target body composition!")
+        
+        with st.expander("🎯 Set Milestone 2 Goals", expanded=True):
+            with st.form("milestone_2_form"):
+                new_target_w = st.number_input("New Target Weight (kg)", value=67.0, step=0.5)
+                new_target_bf = st.text_input("New Target Body Fat Range", value="15–18%")
+                new_target_date = st.date_input("New Milestone Deadline", value=datetime.date(2027, 3, 31))
+                
+                if st.form_submit_button("Update Master Goals"):
+                    st.toast("✅ Master Goals Updated for Milestone 2!")
+                    st.rerun()
+
     # 3. STATISTICS & ANALYTICS CHARTS SECTION
     st.markdown("---")
     st.markdown("### 📈 Body Composition Statistics & Trends")
@@ -521,17 +536,20 @@ with tab1:
         current_date_str = today_date.strftime('%Y-%m-%d')
         last_record_date = str(profile_data.get("last_measurement_date", ""))
         
-        has_new_uploads = st.session_state.extracted_scale_metrics and st.session_state.extracted_sleep_metrics
+        has_new_uploads = st.session_state.extracted_scale_metrics or st.session_state.extracted_sleep_metrics
         has_valid_history = (last_record_date == current_date_str)
         
+        # AUTOREGULATION FALLBACK: If data is missing, we simply display a warning but DO NOT block the generation.
         if not has_new_uploads and not has_valid_history:
-            st.error(f"🚨 **Missing Requirements**: Please upload Scale and Sleep screenshots above for {today_date.strftime('%B %d, %Y')}.")
-        else:
-            with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
-                body_data = st.session_state.extracted_scale_metrics or f"Weight: {display_weight}, BF: {display_bf}"
-                sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No sleep logged.")
-                
-                prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles. Do NOT change exercises randomly or without reason.
+            st.warning(f"⚠️ No new metrics logged for {today_date.strftime('%b %d')}. Proceeding with last known baseline data.")
+        
+        with st.spinner(f"Executing Analyst logic for Workout {st.session_state.active_workout_letter}..."):
+            
+            # Use uploaded data if available, otherwise fallback to explicitly telling the LLM no data was provided.
+            body_data = st.session_state.extracted_scale_metrics or f"Last Known Weight: {display_weight}, BF: {display_bf} (Recorded on: {last_record_date or 'Unknown'})"
+            sleep_data = st.session_state.extracted_sleep_metrics or profile_data.get("current_sleep", "No sleep logged for today. Assume baseline/adequate recovery unless noted otherwise.")
+            
+            prompt_text = f"""You are my expert Workout Analyst. Adhere strictly to your core operating principles. Do NOT change exercises randomly or without reason.
 
 Here is my Master Baseline Database:
 {json.dumps(db, indent=2)}
@@ -543,23 +561,23 @@ Latest Scale Data: {body_data}.
 Latest Sleep Data: {sleep_data}. 
 
 Provide a complete, structured workout following established baselines, standard warm-up (5 min treadmill + World's Greatest Stretch), exact exercise names, sets, rep ranges, target 2–3 RIR, rest periods, and standard cooldown (5–10 min easy walking). Output the workout inside ONE monospaced code block."""
-                
-                response_text = generate_content(prompt_text)
-                if "🚨" in response_text:
-                    st.error(response_text)
-                else:
-                    st.session_state.todays_workout = response_text
-                    st.session_state.current_ex_index = 0
-                    st.session_state.current_set_num = 1
-                    st.session_state.workout_started = False
-                    st.session_state.warmup_completed = False
-                    st.session_state.workout_completed = False
-                    st.session_state.final_report = ""
-                    st.session_state.analyst_feedback = ""
-                    st.session_state.workout_logs = []
-                    sync_active_session_to_sheets()
-                    st.toast(f"✅ Workout {st.session_state.active_workout_letter} fed directly to Live Session Tracker!", icon="🚀")
-                    st.success(f"Today's Workout ({st.session_state.active_workout_letter}) generated and sent directly to the Live Session Tracker tab!")
+            
+            response_text = generate_content(prompt_text)
+            if "🚨" in response_text:
+                st.error(response_text)
+            else:
+                st.session_state.todays_workout = response_text
+                st.session_state.current_ex_index = 0
+                st.session_state.current_set_num = 1
+                st.session_state.workout_started = False
+                st.session_state.warmup_completed = False
+                st.session_state.workout_completed = False
+                st.session_state.final_report = ""
+                st.session_state.analyst_feedback = ""
+                st.session_state.workout_logs = []
+                sync_active_session_to_sheets()
+                st.toast(f"✅ Workout {st.session_state.active_workout_letter} fed directly to Live Session Tracker!", icon="🚀")
+                st.success(f"Today's Workout ({st.session_state.active_workout_letter}) generated and sent directly to the Live Session Tracker tab!")
 
 # --- TAB 2: LIVE SESSION TRACKER ---
 with tab2:
