@@ -109,7 +109,7 @@ st.title("🏋️‍♂️ Workout Analyst & Live Gym Assistant")
 
 # API Setup
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
-MODEL_ID = "gemini-1.5-flash"
+MODEL_ID = "gemini-3.6-flash"
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent?key={API_KEY}"
 
 # Force Local Timezone (UTC+8 for Asia/Manila)
